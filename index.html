@@ -178,7 +178,7 @@
             }
         }
 
-        async function saveStateToSupabase() {
+                async function saveStateToSupabase() {
             if (!supabaseClient) return;
             try {
                 const dataToSave = {
@@ -196,9 +196,13 @@
                     .from('app_store')
                     .upsert({ id: 'main', payload: dataToSave, updated_at: new Date() });
 
-                if (error) console.error("Gagal menyimpan ke Supabase:", error.message);
+                if (error) {
+                    console.error("Gagal menyimpan ke Supabase:", error.message);
+                    alert("Gagal menyimpan ke database Supabase: " + error.message); // Memunculkan alert error di layar
+                }
             } catch (error) {
                 console.error("Kesalahan koneksi saat menyimpan:", error);
+                alert("Kesalahan koneksi: " + error.message);
             }
         }
 
