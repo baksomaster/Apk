@@ -223,12 +223,20 @@
         }
 
         function isTransactionEditable(trxTimestamp) {
-            const trxDate = new Date(trxTimestamp);
-            const now = new Date();
-            const diffMs = now - trxDate;
-            const diffHours = diffMs / (1000 * 60 * 60);
-            return diffHours <= 1;
-        }
+    // Pastikan string tanggal menggunakan format ISO dengan huruf 'T' (bukan spasi)
+    const formattedTimestamp = trxTimestamp.includes(' ') ? trxTimestamp.replace(' ', 'T') : trxTimestamp;
+    
+    const trxDate = new Date(formattedTimestamp);
+    const now = new Date();
+    
+    // Validasi jika tanggal gagal diparse
+    if (isNaN(trxDate.getTime())) return false; 
+
+    const diffMs = now - trxDate;
+    const diffHours = diffMs / (1000 * 60 * 60);
+    return diffHours <= 1;
+}
+
 
         function exportToExcel(data, fileName, sheetName) {
             if (typeof XLSX === 'undefined') {
