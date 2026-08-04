@@ -169,6 +169,27 @@
             }
         }
 
+        async function clearAuditLogs() {
+    if (confirm("Apakah Anda yakin ingin mengosongkan semua catatan audit log?")) {
+        const now = new Date();
+        const timeStr = now.toISOString().replace('T', ' ').substring(0, 19);
+        
+        // Kosongkan dan sisakan 1 log baru sebagai penanda pembersihan
+        state.auditLogs = [{
+            id: `log-${Date.now()}`,
+            timestamp: timeStr,
+            user: state.currentUser ? state.currentUser.username : 'system',
+            action: 'CLEAR_LOGS',
+            details: 'Audit log dikosongkan oleh admin.'
+        }];
+        
+        await saveStateToSupabase();
+        render();
+        alert('Audit log berhasil dikosongkan!');
+    }
+}
+
+
         async function saveStateToSupabase() {
             if (!supabaseClient) return;
             try {
@@ -1316,20 +1337,25 @@
         }
 
         function renderAuditTab() {
-            return `
-                <div class="space-y-4">
-                    <h2 class="text-xl font-bold text-slate-900">Audit Log & Catatan Aktivitas</h2>
-                    <div class="bg-slate-900 text-slate-200 rounded-xl p-4 font-mono text-xs space-y-2 max-h-96 overflow-y-auto">
-                        ${state.auditLogs.map(l => `
-                            <div class="border-b border-slate-800 pb-1.5 flex items-start gap-2">
-                                <span class="text-slate-500">[${l.timestamp}]</span>
-                                <span class="text-cyan-400 font-bold">@${l.user}</span>
-                                <span class="text-emerald-400 font-semibold">${l.action}:</span>
-                                <span class="text-slate-300">${l.details}</span>
-                            </div>
-                        `).join('')}
+    return `
+        <div class="space-y-4">
+            <div class="flex justify-between items-center">
+                <h2 class="text-xl font-bold text-slate-900">Audit Log & Catatan Aktivitas</h2>
+                <button onclick="clearAuditLogs()" class="bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1 shadow-sm transition">
+                    <i data-lucide="trash-2" class="w-3.5 h-3.5"></i> Kosongkan Log
+                </button>
+            </div>
+            <div class="bg-slate-900 text-slate-200 rounded-xl p-4 font-mono text-xs space-y-2 max-h-96 overflow-y-auto">
+                ${state.auditLogs.map(l => `
+                    <div class="border-b border-slate-800 pb-1.5 flex items-start gap-2">
+                        <span class="text-slate-500">[${l.timestamp}]</span>
+                        <span class="text-cyan-400 font-bold">@${l.user}</span>
+                        <span class="text-emerald-400 font-semibold">${l.action}:</span>
+                        <span class="text-slate-300">${l.details}</span>
                     </div>
-                </div>
+                `).join('')}
+            </div>
+        </div>
             `;
         }
 
