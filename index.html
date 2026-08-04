@@ -37,7 +37,6 @@
 
     <!-- JAVASCRIPT APPLICATION LOGIC -->
     <script>
-        // --- KONFIGURASI SUPABASE ---
         const SUPABASE_URL = 'https://ruybtjumkghvhpzcjbei.supabase.co/';
         const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJ1eWJ0anVta2dodmhwemNqYmVpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODU4MTcyNDMsImV4cCI6MjEwMTM5MzI0M30.nW5wEAef3LXcmnTNgLyoB66U7nn8yRjzJ96kiMCUMhA';
         
@@ -208,7 +207,6 @@
             return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(num || 0);
         }
 
-        // Fungsi Notifikasi Toast Elegan
         function showToast(message) {
             const existingToast = document.getElementById('pos-toast');
             if (existingToast) existingToast.remove();
@@ -607,7 +605,6 @@
             `;
         }
 
-        // --- TAB POS DENGAN GRID 3 KOLOM DI SEMUA LAYAR ---
         function renderPosTab() {
             const filteredProducts = state.products.filter(p => {
                 const matchCat = state.selectedCategory === 'all' || p.categoryId === state.selectedCategory;
@@ -641,7 +638,6 @@
                             </div>
                         </div>
 
-                        <!-- MENU GRID: 3 Kolom berjejer kesamping di HP, Tablet, maupun Laptop -->
                         <div class="grid grid-cols-3 gap-2.5">
                             ${filteredProducts.map(p => `
                                 <div onclick="addToCart('${p.id}')" class="bg-white p-3 rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition cursor-pointer hover:border-cyan-400 flex flex-col justify-between">
@@ -727,15 +723,12 @@
                                     </div>
                                 </div>
                             ` : `
-                                <div class="bg-slate-50 p-2.5 rounded-lg border border-slate-200 space-y-1 text-xs">
-                                    <div class="flex justify-between items-center text-slate-600">
-                                        <span>Jumlah Pembelian:</span>
-                                        <span class="font-bold text-slate-900">${formatRupiah(cartTotal)}</span>
+                                <div class="bg-cyan-50 p-3 rounded-lg border border-cyan-200 space-y-1 text-xs text-cyan-900">
+                                    <div class="flex justify-between items-center font-bold">
+                                        <span>Pembayaran via:</span>
+                                        <span class="uppercase text-cyan-700">${state.paymentMethod}</span>
                                     </div>
-                                    <div class="flex justify-between items-center pt-1 border-t border-slate-200 text-cyan-700 font-bold uppercase">
-                                        <span>Metode:</span>
-                                        <span>${state.paymentMethod}</span>
-                                    </div>
+                                    <p class="text-[11px] text-slate-600 mt-1">Pastikan saldo/transfer sudah diterima sebelum mencetak struk.</p>
                                 </div>
                             `}
                         </div>
@@ -1370,7 +1363,7 @@
                                     <div class="flex justify-between text-slate-600"><span>Uang Bayar:</span><span>${formatRupiah(t.amountPaid || t.total)}</span></div>
                                     <div class="flex justify-between text-slate-600"><span>Kembalian:</span><span>${formatRupiah(t.changeAmount || 0)}</span></div>
                                 ` : `
-                                    <div class="flex justify-between text-slate-600"><span>Keterangan:</span><span>${t.paymentMethod.toUpperCase()}</span></div>
+                                    <div class="flex justify-between text-slate-600"><span>Status:</span><span>Lunas (${t.paymentMethod.toUpperCase()})</span></div>
                                 `}
                             </div>
                             <div class="border-b border-dashed border-slate-400"></div>
@@ -1411,7 +1404,15 @@
         function selectCategory(c) { state.selectedCategory = c; render(); }
         function handleSearchInput(q) { state.searchQuery = q; render(); }
         
-        // Fungsi Tambah ke Keranjang + Notifikasi Toast
+        // FUNGSI UTAMA YANG DITAMBAHKAN AGAR QRIS & TRANSFER BERFUNGSI
+        function updatePaymentMethod(val) {
+            state.paymentMethod = val;
+            if (val !== 'Tunai') {
+                state.amountPaid = '';
+            }
+            render();
+        }
+
         function addToCart(id) {
             const p = state.products.find(x => x.id === id);
             const item = state.cart.find(x => x.id === id);
@@ -1421,8 +1422,6 @@
             } else { 
                 state.cart.push({ id: p.id, name: p.name, price: p.price, qty: 1, subtotal: p.price }); 
             }
-            
-            // Tampilkan notifikasi toast menu sudah ditambahkan
             showToast(`${p.name} berhasil ditambahkan!`);
             render();
         }
@@ -1465,6 +1464,9 @@
                 amountPaid = parseFloat(state.amountPaid) || 0;
                 if (amountPaid < total) { alert('Uang yang dibayarkan kurang dari total pembelian!'); return; }
                 changeAmount = amountPaid - total;
+            } else {
+                amountPaid = total;
+                changeAmount = 0;
             }
             
             const trx = {
@@ -1485,7 +1487,7 @@
             state.amountPaid = '';
             state.paymentMethod = 'Tunai';
             
-            await logActivity('TRANSAKSI_BARU', `Membuat transaksi baru ${trx.id} senilai ${formatRupiah(total)}`);
+            await logActivity('TRANSAKSI_BARU', `Membuat transaksi baru ${trx.id} (${trx.paymentMethod}) senilai ${formatRupiah(total)}`);
             await saveStateToSupabase();
             render();
         }
