@@ -1410,6 +1410,26 @@
             const item = state.cart.find(x => x.id === id);
             if (item) { item.qty = Math.max(1, item.qty + d); item.subtotal = item.qty * item.price; render(); }
         }
+        function updateAmountPaid(val) {
+    state.amountPaid = val;
+    
+    // Hitung ulang total belanja
+    const cartSubtotal = state.cart.reduce((acc, item) => acc + item.subtotal, 0);
+    const cartTax = (cartSubtotal * (state.settings.taxPercent || 0)) / 100;
+    const cartTotal = cartSubtotal + cartTax;
+    
+    // Hitung kembalian
+    const amountPaidNum = parseFloat(val) || 0;
+    const changeAmount = amountPaidNum - cartTotal;
+    
+    // Update tampilan kembalian secara real-time tanpa kehilangan fokus input
+    const changeDisplay = document.getElementById('change-amount-display');
+    if (changeDisplay) {
+        changeDisplay.textContent = changeAmount >= 0 ? formatRupiah(changeAmount) : 'Uang Kurang';
+        changeDisplay.className = `font-extrabold ${changeAmount >= 0 ? 'text-emerald-600' : 'text-rose-600'}`;
+    }
+}
+
         function updateCartPrice(id, p) {
             const item = state.cart.find(x => x.id === id);
             if (item) { item.price = parseFloat(p) || 0; item.subtotal = item.qty * item.price; render(); }
