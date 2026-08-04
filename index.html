@@ -208,6 +208,22 @@
             return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(num || 0);
         }
 
+        // Fungsi Notifikasi Toast Elegan
+        function showToast(message) {
+            const existingToast = document.getElementById('pos-toast');
+            if (existingToast) existingToast.remove();
+
+            const toast = document.createElement('div');
+            toast.id = 'pos-toast';
+            toast.className = 'fixed bottom-6 left-1/2 transform -translate-x-1/2 bg-slate-900 text-white px-4 py-2.5 rounded-full shadow-2xl z-50 text-xs font-bold border border-cyan-500/40 flex items-center gap-2 transition-all duration-300 animate-bounce';
+            toast.innerHTML = `<span class="w-2 h-2 rounded-full bg-cyan-400"></span> ${message}`;
+            document.body.appendChild(toast);
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                setTimeout(() => toast.remove(), 300);
+            }, 1800);
+        }
+
         async function logActivity(action, details) {
             if (!state.currentUser) return;
             const now = new Date();
@@ -223,20 +239,14 @@
         }
 
         function isTransactionEditable(trxTimestamp) {
-    // Pastikan string tanggal menggunakan format ISO dengan huruf 'T' (bukan spasi)
-    const formattedTimestamp = trxTimestamp.includes(' ') ? trxTimestamp.replace(' ', 'T') : trxTimestamp;
-    
-    const trxDate = new Date(formattedTimestamp);
-    const now = new Date();
-    
-    // Validasi jika tanggal gagal diparse
-    if (isNaN(trxDate.getTime())) return false; 
-
-    const diffMs = now - trxDate;
-    const diffHours = diffMs / (1000 * 60 * 60);
-    return diffHours <= 1;
-}
-
+            const formattedTimestamp = trxTimestamp.includes(' ') ? trxTimestamp.replace(' ', 'T') : trxTimestamp;
+            const trxDate = new Date(formattedTimestamp);
+            const now = new Date();
+            if (isNaN(trxDate.getTime())) return false; 
+            const diffMs = now - trxDate;
+            const diffHours = diffMs / (1000 * 60 * 60);
+            return diffHours <= 1;
+        }
 
         function exportToExcel(data, fileName, sheetName) {
             if (typeof XLSX === 'undefined') {
@@ -427,7 +437,6 @@
             }
         }
 
-        // --- TAB KATEGORI DENGAN TOMBOL EDIT & HAPUS ---
         function renderCategoriesTab() {
             const selectedCat = state.categories.find(c => c.id === state.selectedManageCategoryId);
             const categoryProducts = selectedCat ? state.products.filter(p => p.categoryId === selectedCat.id) : [];
@@ -447,7 +456,6 @@
                     <div class="grid grid-cols-2 sm:grid-cols-5 gap-3">
                         ${state.categories.map(c => `
                             <div onclick="selectManageCategory('${c.id}')" class="bg-white p-4 rounded-xl border-2 cursor-pointer transition shadow-sm flex flex-col items-center text-center gap-2 relative group ${state.selectedManageCategoryId === c.id ? 'border-cyan-500 bg-cyan-50/50' : 'border-slate-200 hover:border-slate-300'}">
-                                <!-- Tombol Edit & Hapus Kategori -->
                                 <div class="absolute top-2 right-2 flex gap-1 opacity-70 group-hover:opacity-100 transition">
                                     <button onclick="event.stopPropagation(); editCategoryPrompt('${c.id}')" class="p-1 bg-slate-100 hover:bg-cyan-100 text-slate-600 hover:text-cyan-800 rounded transition" title="Edit Kategori">
                                         <i data-lucide="pencil" class="w-3.5 h-3.5"></i>
@@ -523,14 +531,12 @@
             if (!cat) return;
             const productsInCat = state.products.filter(p => p.categoryId === id);
             if (productsInCat.length > 0) {
-                alert(`Tidak dapat menghapus kategori "${cat.name}" karena masih terdapat ${productsInCat.length} menu di dalamnya. Hapus atau pindahkan menu tersebut terlebih dahulu.`);
+                alert(`Tidak dapat menghapus kategori "${cat.name}" karena masih terdapat ${productsInCat.length} menu di dalamnya.`);
                 return;
             }
             if (confirm(`Apakah Anda yakin ingin menghapus kategori "${cat.name}"?`)) {
                 state.categories = state.categories.filter(c => c.id !== id);
-                if (state.selectedManageCategoryId === id) {
-                    state.selectedManageCategoryId = null;
-                }
+                if (state.selectedManageCategoryId === id) state.selectedManageCategoryId = null;
                 await logActivity('HAPUS_KATEGORI', `Menghapus kategori: ${cat.name}`);
                 await saveStateToSupabase();
                 render();
@@ -543,7 +549,6 @@
             render();
         }
 
-        // --- TAB LAINNYA ---
         function renderDashboardTab() {
             const totalOmzet = state.transactions.reduce((acc, t) => acc + t.total, 0);
             const totalBiaya = state.expenses.reduce((acc, e) => acc + e.amount, 0);
@@ -602,6 +607,7 @@
             `;
         }
 
+        // --- TAB POS DENGAN GRID 3 KOLOM DI SEMUA LAYAR ---
         function renderPosTab() {
             const filteredProducts = state.products.filter(p => {
                 const matchCat = state.selectedCategory === 'all' || p.categoryId === state.selectedCategory;
@@ -635,18 +641,16 @@
                             </div>
                         </div>
 
-                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <!-- MENU GRID: 3 Kolom berjejer kesamping di HP, Tablet, maupun Laptop -->
+                        <div class="grid grid-cols-3 gap-2.5">
                             ${filteredProducts.map(p => `
-                                <div onclick="addToCart('${p.id}')" class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition cursor-pointer hover:border-cyan-400 flex flex-col justify-between">
+                                <div onclick="addToCart('${p.id}')" class="bg-white p-3 rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition cursor-pointer hover:border-cyan-400 flex flex-col justify-between">
                                     <div>
-                                        <div class="flex justify-between items-start gap-2">
-                                            <h4 class="font-bold text-sm text-slate-900">${p.name}</h4>
-                                            <span class="bg-cyan-50 text-cyan-800 font-extrabold text-xs px-2 py-1 rounded shrink-0">${formatRupiah(p.price)}</span>
-                                        </div>
-                                        <p class="text-xs text-slate-500 line-clamp-2 mt-1">${p.description}</p>
+                                        <h4 class="font-bold text-xs sm:text-sm text-slate-900 line-clamp-2">${p.name}</h4>
+                                        <div class="font-extrabold text-xs text-cyan-700 mt-1">${formatRupiah(p.price)}</div>
                                     </div>
-                                    <button class="w-full mt-3 bg-slate-50 hover:bg-cyan-500 hover:text-slate-950 text-slate-700 text-xs font-bold py-2 rounded-lg flex items-center justify-center gap-1 transition">
-                                        <i data-lucide="plus" class="w-3.5 h-3.5"></i> Tambah ke Pesanan
+                                    <button class="w-full mt-2.5 bg-slate-50 hover:bg-cyan-500 hover:text-slate-950 text-slate-700 text-[10px] sm:text-xs font-bold py-1.5 rounded-lg flex items-center justify-center gap-1 transition">
+                                        <i data-lucide="plus" class="w-3 h-3"></i> Tambah
                                     </button>
                                 </div>
                             `).join('')}
@@ -1407,36 +1411,41 @@
         function selectCategory(c) { state.selectedCategory = c; render(); }
         function handleSearchInput(q) { state.searchQuery = q; render(); }
         
+        // Fungsi Tambah ke Keranjang + Notifikasi Toast
         function addToCart(id) {
             const p = state.products.find(x => x.id === id);
             const item = state.cart.find(x => x.id === id);
-            if (item) { item.qty++; item.subtotal = item.qty * item.price; }
-            else { state.cart.push({ id: p.id, name: p.name, price: p.price, qty: 1, subtotal: p.price }); }
+            if (item) { 
+                item.qty++; 
+                item.subtotal = item.qty * item.price; 
+            } else { 
+                state.cart.push({ id: p.id, name: p.name, price: p.price, qty: 1, subtotal: p.price }); 
+            }
+            
+            // Tampilkan notifikasi toast menu sudah ditambahkan
+            showToast(`${p.name} berhasil ditambahkan!`);
             render();
         }
+
         function updateCartQty(id, d) {
             const item = state.cart.find(x => x.id === id);
             if (item) { item.qty = Math.max(1, item.qty + d); item.subtotal = item.qty * item.price; render(); }
         }
+
         function updateAmountPaid(val) {
-    state.amountPaid = val;
-    
-    // Hitung ulang total belanja
-    const cartSubtotal = state.cart.reduce((acc, item) => acc + item.subtotal, 0);
-    const cartTax = (cartSubtotal * (state.settings.taxPercent || 0)) / 100;
-    const cartTotal = cartSubtotal + cartTax;
-    
-    // Hitung kembalian
-    const amountPaidNum = parseFloat(val) || 0;
-    const changeAmount = amountPaidNum - cartTotal;
-    
-    // Update tampilan kembalian secara real-time tanpa kehilangan fokus input
-    const changeDisplay = document.getElementById('change-amount-display');
-    if (changeDisplay) {
-        changeDisplay.textContent = changeAmount >= 0 ? formatRupiah(changeAmount) : 'Uang Kurang';
-        changeDisplay.className = `font-extrabold ${changeAmount >= 0 ? 'text-emerald-600' : 'text-rose-600'}`;
-    }
-}
+            state.amountPaid = val;
+            const cartSubtotal = state.cart.reduce((acc, item) => acc + item.subtotal, 0);
+            const cartTax = (cartSubtotal * (state.settings.taxPercent || 0)) / 100;
+            const cartTotal = cartSubtotal + cartTax;
+            const amountPaidNum = parseFloat(val) || 0;
+            const changeAmount = amountPaidNum - cartTotal;
+            
+            const changeDisplay = document.getElementById('change-amount-display');
+            if (changeDisplay) {
+                changeDisplay.textContent = changeAmount >= 0 ? formatRupiah(changeAmount) : 'Uang Kurang';
+                changeDisplay.className = `font-extrabold ${changeAmount >= 0 ? 'text-emerald-600' : 'text-rose-600'}`;
+            }
+        }
 
         function updateCartPrice(id, p) {
             const item = state.cart.find(x => x.id === id);
