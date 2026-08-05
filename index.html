@@ -422,6 +422,9 @@
                             <button onclick="switchTab('edit_receipts')" class="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-sm font-medium transition ${state.activeTab === 'edit_receipts' ? 'bg-cyan-500 text-slate-950 font-bold shadow-md shadow-cyan-500/20' : 'hover:bg-slate-800 text-slate-300'}">
                                 <i data-lucide="file-pen-line" class="w-4 h-4"></i> Edit/Cancel Struk (< 1 Jam)
                             </button>
+                            <button onclick="switchTab('transactions')" class="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-sm font-medium transition ${state.activeTab === 'transactions' ? 'bg-cyan-500 text-slate-950 font-bold' : 'hover:bg-slate-800 text-slate-300'}">
+                                    <i data-lucide="history" class="w-4 h-4"></i> Histori Transaksi
+                            </button>
 
                             ${isAdmin ? `
                                 <div class="pt-4 pb-1 px-3 text-[11px] font-bold uppercase tracking-wider text-slate-500">Master Data</div>
@@ -435,9 +438,6 @@
                                 <div class="pt-4 pb-1 px-3 text-[11px] font-bold uppercase tracking-wider text-slate-500">Keuangan & Laporan</div>
                                 <button onclick="switchTab('expenses')" class="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-sm font-medium transition ${state.activeTab === 'expenses' ? 'bg-cyan-500 text-slate-950 font-bold' : 'hover:bg-slate-800 text-slate-300'}">
                                     <i data-lucide="wallet" class="w-4 h-4"></i> Pengeluaran Toko
-                                </button>
-                                <button onclick="switchTab('transactions')" class="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-sm font-medium transition ${state.activeTab === 'transactions' ? 'bg-cyan-500 text-slate-950 font-bold' : 'hover:bg-slate-800 text-slate-300'}">
-                                    <i data-lucide="history" class="w-4 h-4"></i> Histori Transaksi
                                 </button>
                                 <button onclick="switchTab('sold_items')" class="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-sm font-medium transition ${state.activeTab === 'sold_items' ? 'bg-cyan-500 text-slate-950 font-bold' : 'hover:bg-slate-800 text-slate-300'}">
                                     <i data-lucide="shopping-bag" class="w-4 h-4"></i> Menu Terjual Harian
