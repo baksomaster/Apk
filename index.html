@@ -296,6 +296,12 @@
                 `;
             }
             lucide.createIcons();
+
+            // Otomatis scroll keranjang ke paling bawah
+            const cartContainer = document.getElementById('cart-items-container');
+            if (cartContainer) {
+                cartContainer.scrollTop = cartContainer.scrollHeight;
+            }
         }
 
         function renderLogin() {
@@ -693,7 +699,7 @@
                                 <p class="text-sm font-medium">Keranjang masih kosong</p>
                             </div>
                         ` : `
-                            <div class="space-y-3 max-h-48 overflow-y-auto pr-1">
+                            <div id="cart-items-container" class="space-y-3 max-h-48 overflow-y-auto pr-1">
                                 ${state.cart.map((item, index) => `
                                     <div class="p-3 bg-slate-50 rounded-lg border border-slate-100 space-y-2">
                                         <div class="flex justify-between items-start">
@@ -1111,7 +1117,6 @@
 
         function renderSoldItemsTab() {
             let soldItems = [];
-            // Mengurutkan dari yang paling lama ke yang paling baru (kronologis)
             const sortedTransactions = [...state.transactions].reverse();
             
             sortedTransactions.forEach(t => {
