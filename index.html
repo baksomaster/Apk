@@ -836,12 +836,13 @@
                 return;
             }
             state.editingTrx = JSON.parse(JSON.stringify(trx));
+            history.pushState({ tab: state.activeTab, modal: 'editReceipt', trxId: trxId }, "", "");
             render();
         }
 
         function closeEditReceiptModal() {
             state.editingTrx = null;
-            render();
+            history.back();
         }
 
         function updateEditingQty(productId, delta) {
@@ -1433,8 +1434,7 @@
             state.currentUser = user;
             localStorage.setItem('bakso_master_current_user', JSON.stringify(user));
             
-            state.activeTab = user.role === 'Admin' ? 'dashboard' : 'pos';
-            render();
+            switchTab(user.role === 'Admin' ? 'dashboard' : 'pos');
         }
 
         function handleLogout() { 
@@ -1444,7 +1444,17 @@
             render(); 
         }
 
-        function switchTab(tab) { state.activeTab = tab; state.isSidebarOpen = false; render(); }
+        function switchTab(tab, pushHistory = true) { 
+            state.activeTab = tab; 
+            state.selectedReceiptTrx = null;
+            state.editingTrx = null;
+            state.isSidebarOpen = false; 
+            if (pushHistory) {
+                history.pushState({ tab: tab, modal: null }, "", `#${tab}`);
+            }
+            render(); 
+        }
+
         function selectCategory(c) { state.selectedCategory = c; render(); }
         function handleSearchInput(q) { state.searchQuery = q; render(); }
         
@@ -1525,18 +1535,26 @@
             };
             
             state.transactions.unshift(trx);
-            state.selectedReceiptTrx = trx;
             state.cart = [];
             state.amountPaid = '';
             state.paymentMethod = 'Tunai';
             
             await logActivity('TRANSAKSI_BARU', `Membuat transaksi baru ${trx.id} (${trx.paymentMethod}) senilai ${formatRupiah(total)}`);
             await saveStateToSupabase();
-            render();
+            
+            openReceiptModal(trx.id);
         }
 
-        function openReceiptModal(id) { state.selectedReceiptTrx = state.transactions.find(x => x.id === id); render(); }
-        function closeReceiptModal() { state.selectedReceiptTrx = null; render(); }
+        function openReceiptModal(id) { 
+            state.selectedReceiptTrx = state.transactions.find(x => x.id === id); 
+            history.pushState({ tab: state.activeTab, modal: 'receipt', trxId: id }, "", "");
+            render(); 
+        }
+        
+        function closeReceiptModal() { 
+            state.selectedReceiptTrx = null; 
+            history.back(); 
+        }
         
         async function addCategoryPrompt() {
             const name = prompt('Nama Kategori Baru:');
@@ -1687,6 +1705,33 @@
                     localStorage.removeItem('bakso_master_current_user');
                 }
             }
+
+            // Inisialisasi History API state awal
+            history.replaceState({ tab: state.activeTab, modal: null }, "", "");
+
+            // Pendengar event popstate untuk tombol Back/Forward browser atau HP
+            window.addEventListener('popstate', (event) => {
+                if (event.state) {
+                    state.activeTab = event.state.tab || (state.currentUser ? (state.currentUser.role === 'Admin' ? 'dashboard' : 'pos') : 'pos');
+                    if (event.state.modal === 'receipt') {
+                        state.selectedReceiptTrx = state.transactions.find(x => x.id === event.state.trxId) || null;
+                        state.editingTrx = null;
+                    } else if (event.state.modal === 'editReceipt') {
+                        state.editingTrx = state.transactions.find(x => x.id === event.state.trxId) || null;
+                        state.selectedReceiptTrx = null;
+                    } else {
+                        state.selectedReceiptTrx = null;
+                        state.editingTrx = null;
+                    }
+                    state.isSidebarOpen = false;
+                    render();
+                } else {
+                    state.activeTab = 'pos';
+                    state.selectedReceiptTrx = null;
+                    state.editingTrx = null;
+                    render();
+                }
+            });
 
             render();
             
