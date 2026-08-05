@@ -216,6 +216,7 @@
             if (confirm("Apakah Anda yakin ingin mengembalikan semua data ke pengaturan awal? Semua perubahan akan diset ulang di semua HP kasir/admin!")) {
                 state = JSON.parse(JSON.stringify(defaultState));
                 state.lastActiveDate = getTodayDateString();
+                localStorage.removeItem('bakso_master_current_user');
                 await saveStateToSupabase();
                 alert("Data berhasil di-reset ke default!");
                 render();
@@ -1428,12 +1429,21 @@
             if (!user) { alert('Username salah atau tidak terdaftar.'); return; }
             if (!user.active) { alert('Akun ini sedang dinonaktifkan.'); return; }
             if (user.password !== password) { alert('Password salah!'); return; }
+            
             state.currentUser = user;
+            localStorage.setItem('bakso_master_current_user', JSON.stringify(user));
+            
             state.activeTab = user.role === 'Admin' ? 'dashboard' : 'pos';
             render();
         }
 
-        function handleLogout() { state.currentUser = null; state.cart = []; render(); }
+        function handleLogout() { 
+            state.currentUser = null; 
+            localStorage.removeItem('bakso_master_current_user');
+            state.cart = []; 
+            render(); 
+        }
+
         function switchTab(tab) { state.activeTab = tab; state.isSidebarOpen = false; render(); }
         function selectCategory(c) { state.selectedCategory = c; render(); }
         function handleSearchInput(q) { state.searchQuery = q; render(); }
@@ -1662,6 +1672,22 @@
 
         window.onload = async () => {
             await loadStateFromSupabase();
+            
+            const savedUserJson = localStorage.getItem('bakso_master_current_user');
+            if (savedUserJson) {
+                try {
+                    const savedUser = JSON.parse(savedUserJson);
+                    const existingUser = state.users.find(u => u.username === savedUser.username && u.active);
+                    if (existingUser) {
+                        state.currentUser = existingUser;
+                    } else {
+                        localStorage.removeItem('bakso_master_current_user');
+                    }
+                } catch (e) {
+                    localStorage.removeItem('bakso_master_current_user');
+                }
+            }
+
             render();
             
             setInterval(async () => {
