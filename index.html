@@ -1116,7 +1116,7 @@
                     soldItems.push({
                         ...i,
                         cashierName: t.cashierName || 'Kasir',
-                        trxId: t.id
+                        dateTime: `${t.date} ${t.time}`
                     });
                 });
             });
@@ -1133,7 +1133,7 @@
                         <table class="w-full text-left border-collapse text-sm">
                             <thead>
                                 <tr class="bg-slate-50 border-b border-slate-200 text-xs font-semibold text-slate-500 uppercase">
-                                    <th class="p-3">No TRX</th>
+                                    <th class="p-3">Tanggal & Jam</th>
                                     <th class="p-3">Menu</th>
                                     <th class="p-3">Kasir</th>
                                     <th class="p-3 text-center">Qty</th>
@@ -1145,7 +1145,7 @@
                                     <tr><td colspan="5" class="p-6 text-center text-slate-400 text-xs">Belum ada menu terjual hari ini.</td></tr>
                                 ` : soldItems.map(i => `
                                     <tr class="hover:bg-slate-50">
-                                        <td class="p-3 font-bold text-xs text-slate-900">${i.trxId}</td>
+                                        <td class="p-3 font-bold text-xs text-slate-900">${i.dateTime}</td>
                                         <td class="p-3 font-semibold text-slate-900">${i.name}</td>
                                         <td class="p-3 text-xs text-slate-700">${i.cashierName}</td>
                                         <td class="p-3 text-center font-bold">${i.qty}</td>
@@ -1164,7 +1164,7 @@
             state.transactions.forEach(t => {
                 t.items.forEach(i => {
                     data.push({
-                        "No TRX": t.id,
+                        "Tanggal & Jam": `${t.date} ${t.time}`,
                         "Menu": i.name,
                         "Kasir": t.cashierName || 'Kasir',
                         "Qty": i.qty,
@@ -1474,14 +1474,12 @@
 
         function addToCart(id) {
             const p = state.products.find(x => x.id === id);
-            // Cek apakah ada item di keranjang dengan ID yang sama DAN harga default produk
             const item = state.cart.find(x => x.id === id && x.price === p.price);
             
             if (item) { 
                 item.qty++; 
                 item.subtotal = item.qty * item.price; 
             } else { 
-                // Jika harganya custom, buat baris baru di keranjang dengan harga default produk
                 state.cart.push({ id: p.id, name: p.name, price: p.price, qty: 1, subtotal: p.price }); 
             }
             showToast(`${p.name} berhasil ditambahkan!`);
@@ -1650,7 +1648,7 @@
             const amount = prompt('Nominal:', '10000');
             if (!amount) return;
 
-            state.expenses.unshift({ id: `exp-${Date.now()}`, name: name.trim(), amount: parseFloat(amount) || 0 });
+            state.expenses.unshift({ id: `exp-${Date.now()}`, name: name.trim(), amount: parseFloat(amount) || 10000 });
             await logActivity('TAMBAH_PENGELUARAN', `Menambah pengeluaran: ${name} (${formatRupiah(amount)})`);
             await saveStateToSupabase(); 
             render();
@@ -1679,7 +1677,10 @@
             if (!exp) return;
             if (confirm(`Apakah Anda yakin ingin menghapus catatan pengeluaran "${exp.name}"?`)) {
                 state.expenses = state.expenses.filter(x => x.id !== id);
-                await logActivity('HAPUS_PENGELUARAN', `Menghapus pengeluaran: ${exp.name}`);
+                async function logActivityAsync() {
+                    await logActivity('HAPUS_PENGELUARAN', `Menghapus pengeluaran: ${exp.name}`);
+                }
+                logActivityAsync();
                 await saveStateToSupabase();
                 render();
                 alert('Pengeluaran berhasil dihapus!');
@@ -1705,7 +1706,7 @@
             await saveStateToSupabase(); 
             await logActivity('UPDATE_SETTINGS', 'Memperbarui pengaturan identitas toko.');
             
-            alert('Pengaturan toko berhasil disimpan ke cloud!'); 
+            alert('Pengaturan toko berhasil disimpan ke cloud! ✨'); 
             render();
         }
 
@@ -1730,10 +1731,10 @@
             history.replaceState({ tab: state.activeTab, modal: null }, "", "");
 
             window.addEventListener('popstate', (event) => {
-                if (event.state) {
+                if, (event.state) {
                     state.activeTab = event.state.tab || (state.currentUser ? (state.currentUser.role === 'Admin' ? 'dashboard' : 'pos') : 'pos');
                     if (event.state.modal === 'receipt') {
-                        state.selectedReceiptTrx = state.transactions.find(x => x.id === event.state.trxId) || null;
+                        state.selectedReceiptTrx = state.transactions.item(x => x.id === event.state.trxId) || null;
                         state.editingTrx = null;
                     } else if (event.state.modal === 'editReceipt') {
                         state.editingTrx = state.transactions.find(x => x.id === event.state.trxId) || null;
