@@ -655,13 +655,37 @@
             `;
         }
 
-        function renderPosTab() {
-            const filteredProducts = state.products.filter(p => {
+        // Helper untuk render grid produk secara terisolasi agar pencarian tidak menutup keyboard
+        function getFilteredProducts() {
+            return state.products.filter(p => {
                 const matchCat = state.selectedCategory === 'all' || p.categoryId === state.selectedCategory;
                 const matchSearch = p.name.toLowerCase().includes(state.searchQuery.toLowerCase());
                 return matchCat && matchSearch;
             });
+        }
 
+        function renderProductGridHTML() {
+            const filteredProducts = getFilteredProducts();
+            return filteredProducts.map(p => {
+                const productCartItems = state.cart.filter(item => item.id === p.id);
+                const totalQty = productCartItems.reduce((acc, curr) => acc + curr.qty, 0);
+                const isSelected = totalQty > 0;
+                return `
+                    <div onclick="addToCart('${p.id}')" class="bg-white p-3 rounded-xl border-2 ${isSelected ? 'border-cyan-500 bg-cyan-50/50 shadow-md ring-2 ring-cyan-400/20' : 'border-slate-200 hover:border-cyan-400'} shadow-sm hover:shadow-md transition-all duration-150 cursor-pointer active:scale-95 flex flex-col justify-between relative group">
+                        ${isSelected ? `<span class="absolute -top-2 -right-2 bg-cyan-500 text-slate-950 text-[10px] font-extrabold w-5 h-5 rounded-full flex items-center justify-center shadow-lg animate-pulse">${totalQty}</span>` : ''}
+                        <div>
+                            <h4 class="font-bold text-xs sm:text-sm text-slate-900 line-clamp-2">${p.name}</h4>
+                            <div class="font-extrabold text-xs text-cyan-700 mt-1">${formatRupiah(p.price)}</div>
+                        </div>
+                        <button class="w-full mt-2.5 ${isSelected ? 'bg-cyan-500 text-slate-950 font-extrabold shadow' : 'bg-slate-50 hover:bg-cyan-500 hover:text-slate-950 text-slate-700'} text-[10px] sm:text-xs font-bold py-1.5 rounded-lg flex items-center justify-center gap-1 transition">
+                            <i data-lucide="${isSelected ? 'check' : 'plus'}" class="w-3 h-3"></i> ${isSelected ? 'Dipilih' : 'Tambah'}
+                        </button>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function renderPosTab() {
             const cartSubtotal = state.cart.reduce((acc, item) => acc + item.subtotal, 0);
             const cartTax = (cartSubtotal * (state.settings.taxPercent || 0)) / 100;
             const cartTotal = cartSubtotal + cartTax;
@@ -688,24 +712,9 @@
                             </div>
                         </div>
 
-                        <div class="grid grid-cols-3 gap-2.5">
-                            ${filteredProducts.map(p => {
-                                const productCartItems = state.cart.filter(item => item.id === p.id);
-                                const totalQty = productCartItems.reduce((acc, curr) => acc + curr.qty, 0);
-                                const isSelected = totalQty > 0;
-                                return `
-                                    <div onclick="addToCart('${p.id}')" class="bg-white p-3 rounded-xl border-2 ${isSelected ? 'border-cyan-500 bg-cyan-50/50 shadow-md ring-2 ring-cyan-400/20' : 'border-slate-200 hover:border-cyan-400'} shadow-sm hover:shadow-md transition-all duration-150 cursor-pointer active:scale-95 flex flex-col justify-between relative group">
-                                        ${isSelected ? `<span class="absolute -top-2 -right-2 bg-cyan-500 text-slate-950 text-[10px] font-extrabold w-5 h-5 rounded-full flex items-center justify-center shadow-lg animate-pulse">${totalQty}</span>` : ''}
-                                        <div>
-                                            <h4 class="font-bold text-xs sm:text-sm text-slate-900 line-clamp-2">${p.name}</h4>
-                                            <div class="font-extrabold text-xs text-cyan-700 mt-1">${formatRupiah(p.price)}</div>
-                                        </div>
-                                        <button class="w-full mt-2.5 ${isSelected ? 'bg-cyan-500 text-slate-950 font-extrabold shadow' : 'bg-slate-50 hover:bg-cyan-500 hover:text-slate-950 text-slate-700'} text-[10px] sm:text-xs font-bold py-1.5 rounded-lg flex items-center justify-center gap-1 transition">
-                                            <i data-lucide="${isSelected ? 'check' : 'plus'}" class="w-3 h-3"></i> ${isSelected ? 'Dipilih' : 'Tambah'}
-                                        </button>
-                                    </div>
-                                `;
-                            }).join('')}
+                        <!-- Product Grid Container dengan ID agar update pencarian tidak menutup keyboard -->
+                        <div id="product-grid-container" class="grid grid-cols-3 gap-2.5">
+                            ${renderProductGridHTML()}
                         </div>
                     </div>
 
@@ -731,8 +740,8 @@
                                                 <div class="font-semibold text-sm text-slate-900">${item.name}</div>
                                                 <div class="flex items-center gap-1 text-xs text-slate-500 mt-1">
                                                     <span>Harga:</span>
-                                                    <!-- Input harga otomatis bertitik -->
-                                                    <input type="text" value="${formatNumber(item.price)}" oninput="formatPriceInput(this); updateCartPrice(${index}, parseNumber(this.value))" class="w-24 bg-white border border-slate-300 rounded px-1.5 py-0.5 font-bold text-cyan-700 text-xs">
+                                                    <!-- Input harga custom: oninput memperbarui nilai live tanpa re-render penuh, onblur merender ulang saat selesai -->
+                                                    <input type="text" value="${formatNumber(item.price)}" oninput="handleCartPriceInput(this, ${index})" onblur="render()" class="w-24 bg-white border border-slate-300 rounded px-1.5 py-0.5 font-bold text-cyan-700 text-xs">
                                                 </div>
                                             </div>
                                             <button onclick="removeFromCart(${index})" class="text-slate-400 hover:text-rose-500"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
@@ -743,7 +752,7 @@
                                                 <span class="font-bold text-sm w-5 text-center">${item.qty}</span>
                                                 <button onclick="updateCartQty(${index}, 1)" class="w-6 h-6 bg-slate-200 rounded font-bold flex items-center justify-center text-xs">+</button>
                                             </div>
-                                            <div class="font-bold text-sm text-slate-900">${formatRupiah(item.subtotal)}</div>
+                                            <div id="cart-item-subtotal-${index}" class="font-bold text-sm text-slate-900">${formatRupiah(item.subtotal)}</div>
                                         </div>
                                     </div>
                                 `).join('')}
@@ -772,7 +781,6 @@
                                     </div>
                                     <div>
                                         <label class="block text-[11px] font-semibold text-slate-600 mb-1">Jumlah Uang Dibayarkan</label>
-                                        <!-- Input uang dibayar otomatis bertitik -->
                                         <input id="amount-paid-input" type="text" placeholder="Contoh: 50.000" value="${state.amountPaid !== '' && state.amountPaid !== null ? formatNumber(state.amountPaid) : ''}" oninput="formatPriceInput(this); updateAmountPaid(parseNumber(this.value))" class="w-full bg-white border border-slate-300 rounded px-2.5 py-1.5 font-bold text-slate-900">
                                     </div>
                                     <div class="flex justify-between items-center pt-1 border-t border-slate-200">
@@ -792,11 +800,11 @@
                         </div>
 
                         <div class="border-t border-slate-200 pt-3 space-y-1 text-xs">
-                            <div class="flex justify-between text-slate-600"><span>Subtotal</span><span>${formatRupiah(cartSubtotal)}</span></div>
-                            <div class="flex justify-between text-slate-600"><span>Pajak (${state.settings.taxPercent || 0}%)</span><span>${formatRupiah(cartTax)}</span></div>
+                            <div class="flex justify-between text-slate-600"><span>Subtotal</span><span id="summary-subtotal">${formatRupiah(cartSubtotal)}</span></div>
+                            <div class="flex justify-between text-slate-600"><span>Pajak (${state.settings.taxPercent || 0}%)</span><span id="summary-tax">${formatRupiah(cartTax)}</span></div>
                             <div class="flex justify-between font-extrabold text-base text-slate-900 pt-2 border-t border-slate-100">
                                 <span>Total Bayar</span>
-                                <span class="text-cyan-700">${formatRupiah(cartTotal)}</span>
+                                <span id="summary-total" class="text-cyan-700">${formatRupiah(cartTotal)}</span>
                             </div>
                             <button id="checkout-btn" onclick="handleCheckout()" ${state.cart.length === 0 ? 'disabled' : ''} class="w-full mt-3 bg-cyan-500 hover:bg-cyan-400 disabled:opacity-50 text-slate-950 font-extrabold py-3 rounded-xl shadow-lg shadow-cyan-500/20 flex items-center justify-center gap-2 text-sm">
                                 Bayar & Cetak Struk <i data-lucide="chevron-right" class="w-4 h-4"></i>
@@ -1513,8 +1521,28 @@
             render(); 
         }
 
-        function selectCategory(c) { state.selectedCategory = c; render(); }
-        function handleSearchInput(q) { state.searchQuery = q; render(); }
+        function selectCategory(c) { 
+            state.selectedCategory = c; 
+            const gridContainer = document.getElementById('product-grid-container');
+            if (gridContainer) {
+                gridContainer.innerHTML = renderProductGridHTML();
+                lucide.createIcons();
+            } else {
+                render(); 
+            }
+        }
+
+        // Fungsi khusus penanganan ketikan pencarian tanpa me-render ulang seluruh halaman (agar keyboard tidak tertutup)
+        function handleSearchInput(q) {
+            state.searchQuery = q;
+            const gridContainer = document.getElementById('product-grid-container');
+            if (gridContainer) {
+                gridContainer.innerHTML = renderProductGridHTML();
+                lucide.createIcons();
+            } else {
+                render();
+            }
+        }
         
         function updatePaymentMethod(val) {
             state.paymentMethod = val;
@@ -1562,12 +1590,48 @@
             }
         }
 
-        function updateCartPrice(index, p) {
+        function updateCartTotalsDisplay() {
+            const cartSubtotal = state.cart.reduce((acc, item) => acc + item.subtotal, 0);
+            const cartTax = (cartSubtotal * (state.settings.taxPercent || 0)) / 100;
+            const cartTotal = cartSubtotal + cartTax;
+
+            const subtotalEl = document.getElementById('summary-subtotal');
+            const taxEl = document.getElementById('summary-tax');
+            const totalEl = document.getElementById('summary-total');
+            const checkoutBtn = document.getElementById('checkout-btn');
+
+            if (subtotalEl) subtotalEl.textContent = formatRupiah(cartSubtotal);
+            if (taxEl) taxEl.textContent = formatRupiah(cartTax);
+            if (totalEl) totalEl.textContent = formatRupiah(cartTotal);
+            if (checkoutBtn) checkoutBtn.disabled = state.cart.length === 0;
+
+            const amountPaidInput = document.getElementById('amount-paid-input');
+            if (amountPaidInput) {
+                const amountPaidNum = parseNumber(amountPaidInput.value);
+                const changeAmount = amountPaidNum - cartTotal;
+                const changeDisplay = document.getElementById('change-amount-display');
+                if (changeDisplay) {
+                    changeDisplay.textContent = changeAmount >= 0 ? formatRupiah(changeAmount) : 'Uang Kurang';
+                    changeDisplay.className = `font-extrabold ${changeAmount >= 0 ? 'text-emerald-600' : 'text-rose-600'}`;
+                }
+            }
+        }
+
+        // Fungsi khusus penanganan ketikan harga custom di keranjang tanpa menutup keyboard
+        function handleCartPriceInput(input, index) {
+            formatPriceInput(input);
+            const rawVal = parseNumber(input.value);
             const item = state.cart[index];
             if (item) { 
-                item.price = p; 
+                item.price = rawVal; 
                 item.subtotal = item.qty * item.price; 
-                render(); 
+                
+                const subtotalEl = document.getElementById(`cart-item-subtotal-${index}`);
+                if (subtotalEl) {
+                    subtotalEl.textContent = formatRupiah(item.subtotal);
+                }
+                
+                updateCartTotalsDisplay();
             }
         }
 
@@ -1821,3 +1885,4 @@
     </script>
 </body>
 </html>
+
