@@ -1249,7 +1249,7 @@
                 <table class="w-full text-left border-collapse text-sm min-w-[550px]">
                     <thead>
                         <tr class="bg-slate-50 border-b border-slate-200 text-xs font-semibold text-slate-500 uppercase whitespace-nowrap">
-                            <th class="p-3">No TRX / Waktu</th>
+                            <th class="p-3">Jam</th>
                             <th class="p-3">Kasir</th>
                             <th class="p-3">Metode</th>
                             <th class="p-3">Total</th>
@@ -1263,7 +1263,7 @@
                             <tr class="hover:bg-slate-50">
                                 <td class="p-3 whitespace-nowrap">
                                     
-                                    <div class="text-[11px] text-slate-500">${t.date} ${t.time}</div>
+                                    <div class="text-[11px] text-slate-500">${i.time}</div>
                                 </td>
                                 <td class="p-3 text-xs text-slate-700 whitespace-nowrap">${t.cashierName || 'Kasir'}</td>
                                 <td class="p-3 whitespace-nowrap">
@@ -1315,7 +1315,7 @@
                 <table class="w-full text-left border-collapse text-sm min-w-[650px]">
                     <thead>
                         <tr class="bg-slate-50 border-b border-slate-200 text-xs font-semibold text-slate-500 uppercase whitespace-nowrap">
-                            <th class="p-3">No TRX / Waktu</th>
+                            <th class="p-3">Jam</th>
                             <th class="p-3">Menu</th>
                             <th class="p-3">Kasir</th>
                             <th class="p-3">Metode Bayar</th>
@@ -1329,7 +1329,7 @@
                         ` : soldItems.map(i => `
                             <tr class="hover:bg-slate-50">
                                 <td class="p-3 whitespace-nowrap">
-                                    <div class="font-bold text-xs text-slate-900">${i.trxId}</div>
+                                    
                                     <div class="text-[11px] text-slate-500">${i.time}</div>
                                 </td>
                                 <td class="p-3 font-semibold text-slate-900 whitespace-nowrap">${i.name}</td>
