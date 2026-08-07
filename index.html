@@ -214,28 +214,33 @@
         }
 
         async function saveStateToSupabase() {
-            if (!supabaseClient) return;
-            try {
-                const dataToSave = {
-                    lastActiveDate: state.lastActiveDate,
-                    settings: state.settings,
-                    categories: state.categories,
-                    products: state.products,
-                    users: state.users,
-                    expenses: state.expenses,
-                    transactions: state.transactions,
-                    auditLogs: state.auditLogs
-                };
+    if (!supabaseClient) return true;
+    try {
+        const dataToSave = {
+            lastActiveDate: state.lastActiveDate,
+            settings: state.settings,
+            categories: state.categories,
+            products: state.products,
+            users: state.users,
+            expenses: state.expenses,
+            transactions: state.transactions,
+            auditLogs: state.auditLogs
+        };
 
-                const { error } = await supabaseClient
-                    .from('app_store')
-                    .upsert({ id: 'main', payload: dataToSave, updated_at: new Date() });
+        const { error } = await supabaseClient
+            .from('app_store')
+            .upsert({ id: 'main', payload: dataToSave, updated_at: new Date() });
 
-                if (error) console.error("Gagal menyimpan ke Supabase:", error.message);
-            } catch (error) {
-                console.error("Kesalahan koneksi saat menyimpan:", error);
-            }
+        if (error) {
+            console.error("Gagal menyimpan ke Supabase:", error.message);
+            return false; // Kembalikan false jika gagal
         }
+        return true; // Kembalikan true jika sukses
+    } catch (error) {
+        console.error("Kesalahan koneksi saat menyimpan:", error);
+        return false;
+    }
+}
 
         async function resetDataToDefault() {
             if (confirm("Apakah Anda yakin ingin mengembalikan semua data ke pengaturan awal? Semua perubahan akan diset ulang di semua HP kasir/admin!")) {
@@ -1778,23 +1783,29 @@
             alert('Pengeluaran berhasil dicatat!');
         }
 
-        async function editExpensePrompt(id) {
-            const exp = state.expenses.find(x => x.id === id);
-            if (!exp) return;
-            const newName = prompt('Edit Nama Pengeluaran:', exp.name);
-            if (newName === null) return;
-            const newAmountStr = prompt('Edit Nominal Pengeluaran:', formatNumber(exp.amount));
-            if (newAmountStr === null) return;
-            const newAmount = parseNumber(newAmountStr);
+        async function addExpensePrompt() {
+    const name = prompt('Nama Pengeluaran:');
+    if (!name) return;
+    const amountStr = prompt('Nominal (contoh: 10.000):', '10.000');
+    if (!amountStr) return;
+    const amount = parseNumber(amountStr);
 
-            exp.name = newName.trim() || exp.name;
-            exp.amount = newAmount || exp.amount;
+    // Masukkan data sementara ke state lokal
+    state.expenses.unshift({ id: `exp-${Date.now()}`, name: name.trim(), amount: amount });
+    await logActivity('TAMBAH_PENGELUARAN', `Menambah pengeluaran: ${name} (${formatRupiah(amount)})`);
+    
+    // Simpan ke Supabase dan cek statusnya
+    const isSaved = await saveStateToSupabase(); 
+    
+    if (!isSaved) {
+        // Jika gagal simpan ke cloud, batalkan penambahan lokal atau beri peringatan tegas
+        alert('Gagal menyimpan ke Database Supabase! Periksa koneksi internet Anda atau pastikan policy Supabase mengizinkan operasi tulis (upsert).');
+        return;
+    }
 
-            await logActivity('EDIT_PENGELUARAN', `Mengubah pengeluaran: ${exp.name}`);
-            await saveStateToSupabase();
-            render();
-            alert('Pengeluaran berhasil diperbarui!');
-        }
+    render();
+    alert('Pengeluaran berhasil dicatat dan disinkronkan ke Cloud!');
+}
 
         async function deleteExpense(id) {
             const exp = state.expenses.find(x => x.id === id);
