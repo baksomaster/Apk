@@ -1304,7 +1304,6 @@
                                     <th class="p-3">No TRX / Waktu</th>
                                     <th class="p-3">Menu</th>
                                     <th class="p-3">Kasir</th>
-                                    <th class="p-3">Metode Pembayaran</th>
                                     <th class="p-3 text-center">Qty</th>
                                     <th class="p-3 text-right">Subtotal</th>
                                 </tr>
@@ -1320,18 +1319,6 @@
                                         </td>
                                         <td class="p-3 font-semibold text-slate-900">${i.name}</td>
                                         <td class="p-3 text-xs text-slate-700">${i.cashierName}</td>
-                                        <td class="p-3">
-    <span class="
-        px-2 py-1 rounded-full text-xs font-bold
-        ${item.paymentMethod === 'Tunai'
-            ? 'bg-green-100 text-green-700'
-            : item.paymentMethod === 'QRIS'
-            ? 'bg-blue-100 text-blue-700'
-            : 'bg-purple-100 text-purple-700'}
-    ">
-        ${item.paymentMethod || '-'}
-    </span>
-</td>
                                         <td class="p-3 text-center font-bold">${i.qty}</td>
                                         <td class="p-3 text-right font-bold text-cyan-700">${formatRupiah(i.subtotal)}</td>
                                     </tr>
