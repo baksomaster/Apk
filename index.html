@@ -1240,35 +1240,46 @@
         // ========================================================
 
         function renderTransactionsTab() {
-            return `
-                <div class="space-y-4">
-                    <h2 class="text-xl font-bold text-slate-900">Histori Transaksi Hari Ini</h2>
-                    <div class="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm">
-                        <table class="w-full text-left border-collapse text-sm">
-                            <thead>
-                                <tr class="bg-slate-50 border-b border-slate-200 text-xs font-semibold text-slate-500 uppercase">
-                                    <th class="p-3">No TRX</th>
-                                    <th class="p-3">Kasir</th>
-                                    <th class="p-3">Metode</th>
-                                    <th class="p-3">Total</th>
-                                    <th class="p-3 text-right">Struk</th>
-                                </tr>
-                            </thead>
-                            <tbody class="divide-y divide-slate-100">
-                                ${state.transactions.length === 0 ? `<tr><td colspan="5" class="p-4 text-center text-slate-400 text-xs">Belum ada transaksi.</td></tr>` : state.transactions.map(t => `
-                                    <tr>
-                                        <td class="p-3 font-bold">${t.id}</td>
-                                        <td class="p-3 text-xs text-slate-700">${t.cashierName || 'Kasir'}</td>
-                                        <td class="p-3"><span class="text-xs bg-slate-100 px-2 py-0.5 rounded font-bold text-slate-700">${t.paymentMethod || 'Tunai'}</span></td>
-                                        <td class="p-3 font-bold text-cyan-700">${formatRupiah(t.total)}</td>
-                                        <td class="p-3 text-right"><button onclick="openReceiptModal('${t.id}')" class="bg-slate-100 px-2 py-1 rounded text-xs font-semibold">Cetak</button></td>
-                                    </tr>
-                                `).join('')}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            `;
+    return `
+        <div class="space-y-4">
+            <h2 class="text-xl font-bold text-slate-900">Histori Transaksi Hari Ini</h2>
+            
+            <!-- Pembungkus tabel dengan overflow-x-auto untuk fitur swipe/scroll horizontal di HP -->
+            <div class="bg-white rounded-xl border border-slate-200 overflow-x-auto shadow-sm">
+                <table class="w-full text-left border-collapse text-sm min-w-[550px]">
+                    <thead>
+                        <tr class="bg-slate-50 border-b border-slate-200 text-xs font-semibold text-slate-500 uppercase whitespace-nowrap">
+                            <th class="p-3">No TRX / Waktu</th>
+                            <th class="p-3">Kasir</th>
+                            <th class="p-3">Metode</th>
+                            <th class="p-3">Total</th>
+                            <th class="p-3 text-right">Struk</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100">
+                        ${state.transactions.length === 0 ? `
+                            <tr><td colspan="5" class="p-4 text-center text-slate-400 text-xs">Belum ada transaksi hari ini.</td></tr>
+                        ` : state.transactions.map(t => `
+                            <tr class="hover:bg-slate-50">
+                                <td class="p-3 whitespace-nowrap">
+                                    <div class="font-bold text-slate-900">${t.id}</div>
+                                    <div class="text-[11px] text-slate-500">${t.date} ${t.time}</div>
+                                </td>
+                                <td class="p-3 text-xs text-slate-700 whitespace-nowrap">${t.cashierName || 'Kasir'}</td>
+                                <td class="p-3 whitespace-nowrap">
+                                    <span class="text-xs bg-slate-100 px-2 py-0.5 rounded font-bold text-slate-700">${t.paymentMethod || 'Tunai'}</span>
+                                </td>
+                                <td class="p-3 font-bold text-cyan-700 whitespace-nowrap">${formatRupiah(t.total)}</td>
+                                <td class="p-3 text-right whitespace-nowrap">
+                                    <button onclick="openReceiptModal('${t.id}')" class="bg-slate-100 hover:bg-cyan-50 text-slate-700 hover:text-cyan-800 px-2.5 py-1 rounded text-xs font-semibold transition">Cetak</button>
+                                </td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    `;
         }
 
         function renderSoldItemsTab() {
@@ -1282,7 +1293,7 @@
                 cashierName: t.cashierName || 'Kasir',
                 trxId: t.id,
                 time: t.time || '',
-                paymentMethod: t.paymentMethod || 'Tunai' // <-- Tambahkan ini
+                paymentMethod: t.paymentMethod || 'Tunai'
             });
         });
     });
@@ -1298,14 +1309,16 @@
                     <i data-lucide="file-spreadsheet" class="w-4 h-4"></i> Export Excel
                 </button>
             </div>
-            <div class="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm">
-                <table class="w-full text-left border-collapse text-sm">
+            
+            <!-- Pembungkus tabel dengan overflow-x-auto & min-w-[650px] agar kolom tidak terpotong di HP -->
+            <div class="bg-white rounded-xl border border-slate-200 overflow-x-auto shadow-sm">
+                <table class="w-full text-left border-collapse text-sm min-w-[650px]">
                     <thead>
-                        <tr class="bg-slate-50 border-b border-slate-200 text-xs font-semibold text-slate-500 uppercase">
+                        <tr class="bg-slate-50 border-b border-slate-200 text-xs font-semibold text-slate-500 uppercase whitespace-nowrap">
                             <th class="p-3">No TRX / Waktu</th>
                             <th class="p-3">Menu</th>
                             <th class="p-3">Kasir</th>
-                            <th class="p-3">Metode Bayar</th> <!-- <-- Tambah Header Kolom -->
+                            <th class="p-3">Metode Bayar</th>
                             <th class="p-3 text-center">Qty</th>
                             <th class="p-3 text-right">Subtotal</th>
                         </tr>
@@ -1315,27 +1328,27 @@
                             <tr><td colspan="6" class="p-6 text-center text-slate-400 text-xs">Belum ada menu terjual hari ini.</td></tr>
                         ` : soldItems.map(i => `
                             <tr class="hover:bg-slate-50">
-                                <td class="p-3">
+                                <td class="p-3 whitespace-nowrap">
                                     <div class="font-bold text-xs text-slate-900">${i.trxId}</div>
                                     <div class="text-[11px] text-slate-500">${i.time}</div>
                                 </td>
-                                <td class="p-3 font-semibold text-slate-900">${i.name}</td>
-                                <td class="p-3 text-xs text-slate-700">${i.cashierName}</td>
-                                <td class="p-3">
+                                <td class="p-3 font-semibold text-slate-900 whitespace-nowrap">${i.name}</td>
+                                <td class="p-3 text-xs text-slate-700 whitespace-nowrap">${i.cashierName}</td>
+                                <td class="p-3 whitespace-nowrap">
                                     <span class="text-[11px] px-2 py-0.5 rounded font-bold ${
                                         i.paymentMethod === 'Tunai' ? 'bg-slate-100 text-slate-700' :
                                         i.paymentMethod === 'QRIS' ? 'bg-cyan-100 text-cyan-800' : 'bg-blue-100 text-blue-800'
                                     }">${i.paymentMethod}</span>
-                                </td> <!-- <-- Tampilkan Badge Metode Pembayaran -->
-                                <td class="p-3 text-center font-bold">${i.qty}</td>
-                                <td class="p-3 text-right font-bold text-cyan-700">${formatRupiah(i.subtotal)}</td>
+                                </td>
+                                <td class="p-3 text-center font-bold whitespace-nowrap">${i.qty}</td>
+                                <td class="p-3 text-right font-bold text-cyan-700 whitespace-nowrap">${formatRupiah(i.subtotal)}</td>
                             </tr>
                         `).join('')}
                     </tbody>
                     ${soldItems.length > 0 ? `
                         <tfoot>
-                            <tr class="bg-slate-100 border-t-2 border-slate-200 font-bold text-slate-900">
-                                <td colspan="4" class="p-3 text-right uppercase text-xs">Total Keseluruhan:</td> <!-- <-- Ubah colspan menjadi 4 karena ada penambahan 1 kolom -->
+                            <tr class="bg-slate-100 border-t-2 border-slate-200 font-bold text-slate-900 whitespace-nowrap">
+                                <td colspan="4" class="p-3 text-right uppercase text-xs">Total Keseluruhan:</td>
                                 <td class="p-3 text-center text-sm">${totalQtyAll}</td>
                                 <td class="p-3 text-right text-sm text-cyan-700">${formatRupiah(totalRevenueAll)}</td>
                             </tr>
@@ -1345,7 +1358,7 @@
             </div>
         </div>
     `;
-}
+        }
 
         function handleExportSoldItems() {
     if (typeof XLSX === 'undefined') {
