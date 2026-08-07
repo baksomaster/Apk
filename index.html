@@ -1348,23 +1348,79 @@
 }
 
         function handleExportSoldItems() {
-    let data = [];
+    if (typeof XLSX === 'undefined') {
+        alert('Library Excel belum dimuat!');
+        return;
+    }
+
+    const todayStr = getTodayDateString();
     const sortedTransactions = [...state.transactions].reverse();
+
+    // 1. Susun baris-demi-baris (Array of Arrays)
+    const rows = [];
+
+    // Kop & Judul Laporan
+    rows.push([state.settings.storeName.toUpperCase()]);
+    rows.push(["LAPORAN PENJUALAN & MENU TERJUAL HARIAN"]);
+    rows.push([`Tanggal Export: ${todayStr}`]);
+    rows.push([]); // Baris kosong pemisah
+
+    // Header Kolom Tabel
+    rows.push(["No", "Waktu", "No TRX", "Nama Menu", "Kasir", "Metode Bayar", "Qty", "Harga Satuan (Rp)", "Subtotal (Rp)"]);
+
+    // Data Item Terjual
+    let totalQtyAll = 0;
+    let totalRevenueAll = 0;
+    let no = 1;
+
     sortedTransactions.forEach(t => {
         t.items.forEach(i => {
-            data.push({
-                "Waktu": `${t.date} ${t.time}`,
-                "Menu": i.name,
-                "Kasir": t.cashierName || 'Kasir',
-                "Metode Bayar": t.paymentMethod || 'Tunai', // <-- Tambahkan ini
-                "Qty": i.qty,
-                "Harga Satuan": i.price,
-                "Subtotal": i.subtotal
-            });
+            rows.push([
+                no++,
+                `${t.date} ${t.time}`,
+                t.id,
+                i.name,
+                t.cashierName || 'Kasir',
+                t.paymentMethod || 'Tunai',
+                i.qty,
+                i.price,
+                i.subtotal
+            ]);
+            totalQtyAll += i.qty;
+            totalRevenueAll += i.subtotal;
         });
     });
-    exportToExcel(data, `Menu_Terjual_${getTodayDateString()}`, "Terjual");
-}
+
+    // Baris Total Penjualan
+    rows.push([]); // Baris kosong pembatas
+    rows.push([
+        "", "", "", "", "", "TOTAL KESELURUHAN:",
+        totalQtyAll,
+        "",
+        totalRevenueAll
+    ]);
+
+    // 2. Buat Worksheet dari Array of Arrays
+    const worksheet = XLSX.utils.aoa_to_sheet(rows);
+
+    // 3. Atur Lebar Kolom agar rapi & tidak bertumpuk/amburadul
+    worksheet['!cols'] = [
+        { wch: 6 },  // No
+        { wch: 18 }, // Waktu
+        { wch: 15 }, // No TRX
+        { wch: 30 }, // Nama Menu
+        { wch: 18 }, // Kasir
+        { wch: 15 }, // Metode Bayar
+        { wch: 8 },  // Qty
+        { wch: 18 }, // Harga Satuan
+        { wch: 18 }  // Subtotal
+    ];
+
+    // 4. Generate & Download File Excel
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Menu Terjual");
+    XLSX.writeFile(workbook, `Laporan_Penjualan_${todayStr}.xlsx`);
+        }
 
         function renderDailyExpensesTab() {
             return `
@@ -1384,10 +1440,53 @@
         }
 
         function handleExportDailyExpenses() {
-            let data = state.expenses.map(e => ({ Nama: e.name, Nominal: e.amount }));
-            exportToExcel(data, `Belanja_Harian_${getTodayDateString()}`, "Belanja");
-        }
+    if (typeof XLSX === 'undefined') {
+        alert('Library Excel belum dimuat!');
+        return;
+    }
 
+    const todayStr = getTodayDateString();
+    const rows = [];
+
+    // Kop & Judul Laporan
+    rows.push([state.settings.storeName.toUpperCase()]);
+    rows.push(["LAPORAN BELANJA & PENGELUARAN HARIAN"]);
+    rows.push([`Tanggal Export: ${todayStr}`]);
+    rows.push([]); // Baris kosong pemisah
+
+    // Header Kolom Tabel
+    rows.push(["No", "Nama Belanja / Pengeluaran", "Nominal (Rp)"]);
+
+    // Data Pengeluaran
+    let totalExpense = 0;
+    state.expenses.forEach((e, index) => {
+        rows.push([
+            index + 1,
+            e.name,
+            e.amount
+        ]);
+        totalExpense += e.amount;
+    });
+
+    // Baris Total Pengeluaran
+    rows.push([]);
+    rows.push(["", "TOTAL PENGELUARAN:", totalExpense]);
+
+    // Buat Worksheet
+    const worksheet = XLSX.utils.aoa_to_sheet(rows);
+
+    // Atur Lebar Kolom
+    worksheet['!cols'] = [
+        { wch: 6 },  // No
+        { wch: 35 }, // Nama Belanja
+        { wch: 20 }  // Nominal
+    ];
+
+    // Generate & Download File Excel
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Belanja Harian");
+    XLSX.writeFile(workbook, `Laporan_Belanja_${todayStr}.xlsx`);
+        }
         function renderReportsTab() {
             const omzet = state.transactions.reduce((a, b) => a + b.total, 0);
             const biaya = state.expenses.reduce((a, b) => a + b.amount, 0);
