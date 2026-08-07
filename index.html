@@ -86,6 +86,13 @@
             activeTab: 'pos',
             isSidebarOpen: false,
             selectedManageCategoryId: null,
+            expenseModal: {
+                isOpen: false,
+                mode: 'add',
+                id: null,
+                name: '',
+                amount: ''
+            },
             settings: {
                 storeName: 'Bakso Master',
                 address: 'Payudan Karangsokon Guluk-guluk Sumenep',
@@ -318,6 +325,7 @@
                     </div>
                     ${state.selectedReceiptTrx ? renderReceiptModal() : ''}
                     ${state.editingTrx ? renderEditReceiptModal() : ''}
+                    ${state.expenseModal.isOpen ? renderExpenseModal() : ''}
                 `;
             }
             lucide.createIcons();
@@ -655,7 +663,6 @@
             `;
         }
 
-        // Helper untuk render grid produk secara terisolasi agar pencarian tidak menutup keyboard
         function getFilteredProducts() {
             return state.products.filter(p => {
                 const matchCat = state.selectedCategory === 'all' || p.categoryId === state.selectedCategory;
@@ -712,7 +719,6 @@
                             </div>
                         </div>
 
-                        <!-- Product Grid Container dengan ID agar update pencarian tidak menutup keyboard -->
                         <div id="product-grid-container" class="grid grid-cols-3 gap-2.5">
                             ${renderProductGridHTML()}
                         </div>
@@ -740,7 +746,6 @@
                                                 <div class="font-semibold text-sm text-slate-900">${item.name}</div>
                                                 <div class="flex items-center gap-1 text-xs text-slate-500 mt-1">
                                                     <span>Harga:</span>
-                                                    <!-- Input harga custom: oninput memperbarui nilai live tanpa re-render penuh, onblur merender ulang saat selesai -->
                                                     <input type="text" value="${formatNumber(item.price)}" oninput="handleCartPriceInput(this, ${index})" onblur="render()" class="w-24 bg-white border border-slate-300 rounded px-1.5 py-0.5 font-bold text-cyan-700 text-xs">
                                                 </div>
                                             </div>
@@ -1079,12 +1084,16 @@
             `;
         }
 
+        // ================= EXPENSES TAB & MODAL =================
         function renderExpensesTab() {
             return `
                 <div class="space-y-4">
                     <div class="flex justify-between items-center">
-                        <h2 class="text-xl font-bold text-slate-900">Pengeluaran Operasional Toko Hari Ini</h2>
-                        <button onclick="addExpensePrompt()" class="bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold px-3 py-2 rounded-lg text-xs flex items-center gap-1">
+                        <div>
+                            <h2 class="text-xl font-bold text-slate-900">Pengeluaran Operasional Toko Hari Ini</h2>
+                            <p class="text-xs text-slate-500">Catat seluruh biaya operasional harian restoran.</p>
+                        </div>
+                        <button onclick="openAddExpenseModal()" class="bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold px-3 py-2 rounded-lg text-xs flex items-center gap-1 shadow">
                             <i data-lucide="plus" class="w-4 h-4"></i> Catat Pengeluaran
                         </button>
                     </div>
@@ -1105,7 +1114,7 @@
                                         <td class="p-3 font-semibold text-slate-900">${e.name}</td>
                                         <td class="p-3 font-bold text-rose-600">${formatRupiah(e.amount)}</td>
                                         <td class="p-3 text-right space-x-1">
-                                            <button onclick="editExpensePrompt('${e.id}')" class="bg-cyan-50 hover:bg-cyan-100 text-cyan-800 px-2.5 py-1 rounded text-xs font-bold transition">Edit</button>
+                                            <button onclick="openEditExpenseModal('${e.id}')" class="bg-cyan-50 hover:bg-cyan-100 text-cyan-800 px-2.5 py-1 rounded text-xs font-bold transition">Edit</button>
                                             <button onclick="deleteExpense('${e.id}')" class="bg-rose-50 hover:bg-rose-100 text-rose-600 px-2.5 py-1 rounded text-xs font-bold transition">Hapus</button>
                                         </td>
                                     </tr>
@@ -1116,6 +1125,119 @@
                 </div>
             `;
         }
+
+        function renderExpenseModal() {
+            const m = state.expenseModal;
+            return `
+                <div class="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                    <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 space-y-4">
+                        <div class="flex justify-between items-center border-b pb-3">
+                            <h3 class="font-bold text-lg text-slate-900">${m.mode === 'add' ? 'Catat Pengeluaran Baru' : 'Edit Pengeluaran'}</h3>
+                            <button onclick="closeExpenseModal()" class="text-slate-400 hover:text-slate-600"><i data-lucide="x" class="w-5 h-5"></i></button>
+                        </div>
+                        <form onsubmit="handleExpenseSubmit(event)" class="space-y-3 text-xs">
+                            <div>
+                                <label class="block font-semibold text-slate-700 mb-1">Nama Pengeluaran</label>
+                                <input id="exp-modal-name" type="text" required placeholder="Contoh: Beli Gas 3kg, Parkir, dll" value="${m.name}" class="w-full border border-slate-300 rounded-lg p-2.5 font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-cyan-500">
+                            </div>
+                            <div>
+                                <label class="block font-semibold text-slate-700 mb-1">Nominal (Rp)</label>
+                                <input id="exp-modal-amount" type="text" required placeholder="Contoh: 25.000" value="${m.amount ? formatNumber(m.amount) : ''}" oninput="formatPriceInput(this)" class="w-full border border-slate-300 rounded-lg p-2.5 font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-cyan-500">
+                            </div>
+                            <div class="flex gap-2 pt-2">
+                                <button type="submit" class="flex-1 bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold py-2.5 rounded-xl text-xs shadow">Simpan Pengeluaran</button>
+                                <button type="button" onclick="closeExpenseModal()" class="bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold px-4 py-2.5 rounded-xl text-xs">Batal</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            `;
+        }
+
+        function openAddExpenseModal() {
+            state.expenseModal = { isOpen: true, mode: 'add', id: null, name: '', amount: '' };
+            render();
+        }
+
+        function openEditExpenseModal(id) {
+            const exp = state.expenses.find(x => x.id === id);
+            if (!exp) return;
+            state.expenseModal = { isOpen: true, mode: 'edit', id: exp.id, name: exp.name, amount: exp.amount };
+            render();
+        }
+
+        function closeExpenseModal() {
+            state.expenseModal = { isOpen: false, mode: 'add', id: null, name: '', amount: '' };
+            render();
+        }
+
+        async function handleExpenseSubmit(e) {
+            e.preventDefault();
+            const nameInput = document.getElementById('exp-modal-name').value.trim();
+            const amountInput = parseNumber(document.getElementById('exp-modal-amount').value);
+
+            if (!nameInput || amountInput <= 0) {
+                alert('Nama pengeluaran dan nominal harus diisi dengan benar!');
+                return;
+            }
+
+            const now = new Date();
+            const timeStr = now.toISOString().replace('T', ' ').substring(0, 19);
+
+            if (state.expenseModal.mode === 'add') {
+                state.expenses.unshift({
+                    id: `exp-${Date.now()}`,
+                    name: nameInput,
+                    amount: amountInput
+                });
+                state.auditLogs.unshift({
+                    id: `log-${Date.now()}`,
+                    timestamp: timeStr,
+                    user: state.currentUser ? state.currentUser.username : 'system',
+                    action: 'TAMBAH_PENGELUARAN',
+                    details: `Menambah pengeluaran: ${nameInput} (${formatRupiah(amountInput)})`
+                });
+            } else {
+                const exp = state.expenses.find(x => x.id === state.expenseModal.id);
+                if (exp) {
+                    exp.name = nameInput;
+                    exp.amount = amountInput;
+                    state.auditLogs.unshift({
+                        id: `log-${Date.now()}`,
+                        timestamp: timeStr,
+                        user: state.currentUser ? state.currentUser.username : 'system',
+                        action: 'EDIT_PENGELUARAN',
+                        details: `Mengubah pengeluaran: ${nameInput} (${formatRupiah(amountInput)})`
+                    });
+                }
+            }
+
+            closeExpenseModal();
+            await saveStateToSupabase();
+            render();
+            showToast('Pengeluaran berhasil disimpan!');
+        }
+
+        async function deleteExpense(id) {
+            const exp = state.expenses.find(x => x.id === id);
+            if (!exp) return;
+            if (confirm(`Apakah Anda yakin ingin menghapus catatan pengeluaran "${exp.name}"?`)) {
+                state.expenses = state.expenses.filter(x => x.id !== id);
+                const now = new Date();
+                const timeStr = now.toISOString().replace('T', ' ').substring(0, 19);
+                state.auditLogs.unshift({
+                    id: `log-${Date.now()}`,
+                    timestamp: timeStr,
+                    user: state.currentUser ? state.currentUser.username : 'system',
+                    action: 'HAPUS_PENGELUARAN',
+                    details: `Menghapus pengeluaran: ${exp.name}`
+                });
+                await saveStateToSupabase();
+                render();
+                showToast('Pengeluaran berhasil dihapus!');
+            }
+        }
+        // ========================================================
 
         function renderTransactionsTab() {
             return `
@@ -1446,10 +1568,9 @@
                     <div class="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-6 text-slate-900 space-y-4">
                         <div id="receipt-paper" class="bg-amber-50/50 p-4 rounded-lg border border-slate-200 font-mono text-xs space-y-3">
                             <div class="text-center space-y-1">
-                                <!-- LOGO MEMANJANG DI ATAS STRUK -->
-                                  <div class="w-45 mx-auto mb-2 flex items-center justify-center">
-                                  <img src="Bakso Master_20260806_015624_0000.png" alt="Bakso Master Logo" class="w-full h-auto object-contain">
-                                   </div>
+                                <div class="w-45 mx-auto mb-2 flex items-center justify-center">
+                                    <img src="Bakso Master_20260806_015624_0000.png" alt="Bakso Master Logo" class="w-full h-auto object-contain">
+                                </div>
                                 <div class="text-[10px] text-slate-600">{Payudan Karangsokon Guluk-guluk Sumenep}</div>
                             </div>
                             <div class="border-b border-dashed border-slate-400"></div>
@@ -1517,6 +1638,7 @@
             state.activeTab = tab; 
             state.selectedReceiptTrx = null;
             state.editingTrx = null;
+            state.expenseModal.isOpen = false;
             state.isSidebarOpen = false; 
             if (pushHistory) {
                 history.pushState({ tab: tab, modal: null }, "", `#${tab}`);
@@ -1535,7 +1657,6 @@
             }
         }
 
-        // Fungsi khusus penanganan ketikan pencarian tanpa me-render ulang seluruh halaman (agar keyboard tidak tertutup)
         function handleSearchInput(q) {
             state.searchQuery = q;
             const gridContainer = document.getElementById('product-grid-container');
@@ -1620,7 +1741,6 @@
             }
         }
 
-        // Fungsi khusus penanganan ketikan harga custom di keranjang tanpa menutup keyboard
         function handleCartPriceInput(input, index) {
             formatPriceInput(input);
             const rawVal = parseNumber(input.value);
@@ -1764,50 +1884,6 @@
             } 
         }
 
-        async function addExpensePrompt() {
-            const name = prompt('Nama Pengeluaran:');
-            if (!name) return;
-            const amountStr = prompt('Nominal (contoh: 10.000):', '10.000');
-            if (!amountStr) return;
-            const amount = parseNumber(amountStr);
-
-            state.expenses.unshift({ id: `exp-${Date.now()}`, name: name.trim(), amount: amount });
-            await logActivity('TAMBAH_PENGELUARAN', `Menambah pengeluaran: ${name} (${formatRupiah(amount)})`);
-            await saveStateToSupabase(); 
-            render();
-            alert('Pengeluaran berhasil dicatat!');
-        }
-
-        async function editExpensePrompt(id) {
-            const exp = state.expenses.find(x => x.id === id);
-            if (!exp) return;
-            const newName = prompt('Edit Nama Pengeluaran:', exp.name);
-            if (newName === null) return;
-            const newAmountStr = prompt('Edit Nominal Pengeluaran:', formatNumber(exp.amount));
-            if (newAmountStr === null) return;
-            const newAmount = parseNumber(newAmountStr);
-
-            exp.name = newName.trim() || exp.name;
-            exp.amount = newAmount || exp.amount;
-
-            await logActivity('EDIT_PENGELUARAN', `Mengubah pengeluaran: ${exp.name}`);
-            await saveStateToSupabase();
-            render();
-            alert('Pengeluaran berhasil diperbarui!');
-        }
-
-        async function deleteExpense(id) {
-            const exp = state.expenses.find(x => x.id === id);
-            if (!exp) return;
-            if (confirm(`Apakah Anda yakin ingin menghapus catatan pengeluaran "${exp.name}"?`)) {
-                state.expenses = state.expenses.filter(x => x.id !== id);
-                await logActivity('HAPUS_PENGELUARAN', `Menghapus pengeluaran: ${exp.name}`);
-                await saveStateToSupabase();
-                render();
-                alert('Pengeluaran berhasil dihapus!');
-            }
-        }
-
         async function toggleUserActive(id) {
             const u = state.users.find(x => x.id === id);
             if (u) { 
@@ -1863,6 +1939,7 @@
                     } else {
                         state.selectedReceiptTrx = null;
                         state.editingTrx = null;
+                        state.expenseModal.isOpen = false;
                     }
                     state.isSidebarOpen = false;
                     render();
@@ -1870,6 +1947,7 @@
                     state.activeTab = 'pos';
                     state.selectedReceiptTrx = null;
                     state.editingTrx = null;
+                    state.expenseModal.isOpen = false;
                     render();
                 }
             });
@@ -1877,7 +1955,7 @@
             render();
             
             setInterval(async () => {
-                if (supabaseClient && !state.editingTrx) {
+                if (supabaseClient && !state.editingTrx && !state.expenseModal.isOpen) {
                     await loadStateFromSupabase();
                     if (state.currentUser && state.activeTab === 'pos' && state.cart.length === 0) {
                         render();
