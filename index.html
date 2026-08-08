@@ -1678,55 +1678,68 @@
         }
 
         function renderReceiptModal() {
-            const t = state.selectedReceiptTrx;
-            if (!t) return '';
-            const subtotalTrx = t.items.reduce((acc, item) => acc + item.subtotal, 0);
-            const taxTrx = t.total - subtotalTrx;
+    const t = state.selectedReceiptTrx;
+    if (!t) return '';
+    const subtotalTrx = t.items.reduce((acc, item) => acc + item.subtotal, 0);
+    const taxTrx = t.total - subtotalTrx;
 
-            return `
-                <div class="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-                    <div class="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-6 text-slate-900 space-y-4">
-                        <div id="receipt-paper" class="bg-amber-50/50 p-4 rounded-lg border border-slate-200 font-mono text-xs space-y-3">
-                            <div class="text-center space-y-1">
-                                <div class="w-45 mx-auto mb-2 flex items-center justify-center">
-                                    <img src="Bakso Master_20260806_015624_0000.png" alt="Bakso Master Logo" class="w-full h-auto object-contain">
-                                </div>
-                                
-                            
-                            <div class="border-b border-dashed border-slate-400"></div>
-                            <div class="space-y-1 text-[11px]">
-                                ${t.items.map(it => `<div class="flex justify-between"><span>${it.qty}x ${it.name}</span><span>${formatRupiah(it.subtotal)}</span></div>`).join('')}
-                            </div>
-                            <div class="border-b border-dashed border-slate-400"></div>
-                            <div class="space-y-1 text-[11px]">
-                                <div class="flex justify-between text-slate-600"><span>Subtotal:</span><span>${formatRupiah(subtotalTrx)}</span></div>
-                                <div class="flex justify-between text-slate-600"><span>Pajak (${state.settings.taxPercent || 0}%):</span><span>${formatRupiah(taxTrx)}</span></div>
-                            </div>
-                            <div class="border-b border-dashed border-slate-400"></div>
-                            <div class="space-y-1 text-[11px]">
-                                <div class="flex justify-between font-bold"><span>Metode Bayar:</span><span>${t.paymentMethod || 'Tunai'}</span></div>
-                                ${t.paymentMethod === 'Tunai' ? `
-                                    <div class="flex justify-between text-slate-600"><span>Uang Bayar:</span><span>${formatRupiah(t.amountPaid || t.total)}</span></div>
-                                    <div class="flex justify-between text-slate-600"><span>Kembalian:</span><span>${formatRupiah(t.changeAmount || 0)}</span></div>
-                                ` : `
-                                    <div class="flex justify-between text-slate-600"><span>Status:</span><span>Lunas (${t.paymentMethod.toUpperCase()})</span></div>
-                                `}
-                            </div>
-                            <div class="border-b border-dashed border-slate-400"></div>
-                            <div class="flex justify-between font-extrabold text-sm"><span>TOTAL:</span><span>${formatRupiah(t.total)}</span></div>
-                            <div class="border-b border-dashed border-slate-400"></div>
-                            <div class="text-center text-[10px] text-slate-600 whitespace-pre-line pt-1">
-                                ${state.settings.receiptFooter || 'Terima Kasih Atas Kunjungan Anda!'}
-                            </div>
+    return `
+        <div class="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <div class="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-6 text-slate-900 space-y-4">
+                <div id="receipt-paper" class="bg-amber-50/50 p-4 rounded-lg border border-slate-200 font-mono text-xs space-y-3">
+                    
+                    <!-- Informasi Tanggal & Jam di Pojok Kiri Atas -->
+                    <div class="flex justify-between items-start text-[10px] text-slate-700 leading-tight">
+                        <div>
+                            <div>Tgl: ${t.date}</div>
+                            <div>Jam: ${t.time} WIB</div>
                         </div>
-                        <div class="flex gap-2 no-print">
-                            <button onclick="window.print()" class="flex-1 bg-cyan-500 text-slate-950 font-bold py-2.5 rounded-xl text-xs">Cetak Struk</button>
-                            <button onclick="closeReceiptModal()" class="bg-slate-100 text-slate-700 font-bold px-4 py-2.5 rounded-xl text-xs">Tutup</button>
+                        <div class="text-right">
+                            <div>No: ${t.id}</div>
+                            <div>Kasir: ${t.cashierName || 'Kasir'}</div>
                         </div>
                     </div>
+
+                    <div class="text-center space-y-1">
+                        <div class="w-40 mx-auto mb-2 flex items-center justify-center">
+                            <img src="Bakso Master_20260806_015624_0000.png" alt="Bakso Master Logo" class="w-full h-auto object-contain">
+                        </div>
+                    
+                    
+                    <div class="border-b border-dashed border-slate-400"></div>
+                    <div class="space-y-1 text-[11px]">
+                        ${t.items.map(it => `<div class="flex justify-between"><span>${it.qty}x ${it.name}</span><span>${formatRupiah(it.subtotal)}</span></div>`).join('')}
+                    </div>
+                    <div class="border-b border-dashed border-slate-400"></div>
+                    <div class="space-y-1 text-[11px]">
+                        <div class="flex justify-between text-slate-600"><span>Subtotal:</span><span>${formatRupiah(subtotalTrx)}</span></div>
+                        <div class="flex justify-between text-slate-600"><span>Pajak (${state.settings.taxPercent || 0}%):</span><span>${formatRupiah(taxTrx)}</span></div>
+                    </div>
+                    <div class="border-b border-dashed border-slate-400"></div>
+                    <div class="space-y-1 text-[11px]">
+                        <div class="flex justify-between font-bold"><span>Metode Bayar:</span><span>${t.paymentMethod || 'Tunai'}</span></div>
+                        ${t.paymentMethod === 'Tunai' ? `
+                            <div class="flex justify-between text-slate-600"><span>Uang Bayar:</span><span>${formatRupiah(t.amountPaid || t.total)}</span></div>
+                            <div class="flex justify-between text-slate-600"><span>Kembalian:</span><span>${formatRupiah(t.changeAmount || 0)}</span></div>
+                        ` : `
+                            <div class="flex justify-between text-slate-600"><span>Status:</span><span>Lunas (${t.paymentMethod.toUpperCase()})</span></div>
+                        `}
+                    </div>
+                    <div class="border-b border-dashed border-slate-400"></div>
+                    <div class="flex justify-between font-extrabold text-sm"><span>TOTAL:</span><span>${formatRupiah(t.total)}</span></div>
+                    <div class="border-b border-dashed border-slate-400"></div>
+                    <div class="text-center text-[10px] text-slate-600 whitespace-pre-line pt-1">
+                        ${state.settings.receiptFooter || 'Terima Kasih Atas Kunjungan Anda!'}
+                    </div>
                 </div>
-            `;
-        }
+                <div class="flex gap-2 no-print">
+                    <button onclick="window.print()" class="flex-1 bg-cyan-500 text-slate-950 font-bold py-2.5 rounded-xl text-xs">Cetak Struk</button>
+                    <button onclick="closeReceiptModal()" class="bg-slate-100 text-slate-700 font-bold px-4 py-2.5 rounded-xl text-xs">Tutup</button>
+                </div>
+            </div>
+        </div>
+    `;
+}
 
         function toggleSidebar() { state.isSidebarOpen = !state.isSidebarOpen; render(); }
         
