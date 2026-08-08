@@ -1780,18 +1780,21 @@
         }
 
         function selectCategory(c) { 
+    // 1. Simpan posisi scroll saat ini sebelum render
+    const categoryContainer = document.getElementById('category-container');
+    const currentScroll = categoryContainer ? categoryContainer.scrollLeft : 0;
+
     state.selectedCategory = c; 
 
-    // Render ulang tampilan
+    // 2. Render ulang tampilan untuk memperbarui tombol aktif & daftar produk
     render(); 
 
-    // Cari tombol yang baru saja diklik dan geser dengan halus ke tengah tampilan
-    const activeBtn = document.querySelector(`#category-container button[onclick*="'${c}'"]`);
-    if (activeBtn) {
-        activeBtn.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+    // 3. Kembalikan posisi scroll ke posisi semula
+    const newCategoryContainer = document.getElementById('category-container');
+    if (newCategoryContainer) {
+        newCategoryContainer.scrollLeft = currentScroll;
     }
 }
-
 
         function handleSearchInput(q) {
             state.searchQuery = q;
