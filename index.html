@@ -921,7 +921,7 @@
             return `
                 <div class="space-y-4">
                     <div>
-                        <h2 class="text-xl font-bold text-slate-900">Kelola / Edit Struk Pembelian (< 1 Jam)</h2>
+                        <h2 class="text-xl font-bold text-slate-900">Edit Struk Pembelian</h2>
                         <p class="text-xs text-slate-500">Kasir dapat mengubah isi item, jumlah, atau membatalkan transaksi yang dibuat kurang dari 1 jam yang lalu.</p>
                     </div>
 
@@ -932,8 +932,8 @@
                                     <th class="p-3">No TRX / Waktu</th>
                                     <th class="p-3">Kasir</th>
                                     <th class="p-3">Total</th>
-                                    <th class="p-3 text-center">Status Waktu</th>
-                                    <th class="p-3 text-right">Opsi Pengaturan</th>
+                                    <th class="p-3 text-center">Status</th>
+                                    <th class="p-3 text-right">Pengaturan</th>
                                 </tr>
                             </thead>
                             <tbody class="divide-y divide-slate-100">
@@ -952,15 +952,15 @@
                                             <td class="p-3 font-bold text-cyan-700 whitespace-nowrap">${formatRupiah(t.total)}</td>
                                             <td class="p-3 text-center whitespace-nowrap">
                                                 ${editable ? `
-                                                    <span class="bg-emerald-100 text-emerald-800 text-[10px] px-2 py-0.5 rounded-full font-bold">Bisa Diedit/Cancel</span>
+                                                    <span class="bg-emerald-100 text-emerald-800 text-[10px] px-2 py-0.5 rounded-full font-bold">Bisa Diedit</span>
                                                 ` : `
-                                                    <span class="bg-slate-100 text-slate-500 text-[10px] px-2 py-0.5 rounded-full font-semibold">> 1 Jam (Terkunci)</span>
+                                                    <span class="bg-slate-100 text-slate-500 text-[10px] px-2 py-0.5 rounded-full font-semibold">>Terkunci</span>
                                                 `}
                                             </td>
                                             <td class="p-3 text-right space-x-1 whitespace-nowrap">
                                                 ${editable ? `
-                                                    <button onclick="openEditReceiptModal('${t.id}')" class="bg-cyan-50 hover:bg-cyan-100 text-cyan-800 px-2.5 py-1 rounded text-xs font-bold transition">Edit Struk</button>
-                                                    <button onclick="cancelTransaction('${t.id}')" class="bg-rose-50 hover:bg-rose-100 text-rose-600 px-2.5 py-1 rounded text-xs font-bold transition">Cancel Struk</button>
+                                                    <button onclick="openEditReceiptModal('${t.id}')" class="bg-cyan-50 hover:bg-cyan-100 text-cyan-800 px-2.5 py-1 rounded text-xs font-bold transition">Edit</button>
+                                                    <button onclick="cancelTransaction('${t.id}')" class="bg-rose-50 hover:bg-rose-100 text-rose-600 px-2.5 py-1 rounded text-xs font-bold transition">Cancel</button>
                                                 ` : `
                                                     <span class="text-xs text-slate-400 font-medium italic">Waktu Habis</span>
                                                 `}
