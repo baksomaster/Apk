@@ -310,45 +310,30 @@
         }
 
         function render() {
-            
-    // 1. Simpan posisi scroll kategori saat ini sebelum DOM dihancurkan
-    const catContainer = document.getElementById('category-container');
-    const savedCategoryScroll = catContainer ? catContainer.scrollLeft : 0;
+            const app = document.getElementById('app');
+            app.className = "flex-1 flex flex-col min-h-screen";
+            if (!state.currentUser) {
+                app.innerHTML = renderLogin();
+            } else {
+                app.innerHTML = `
+                    ${renderHeader()}
+                    <div class="flex-1 flex flex-col md:flex-row max-w-7xl w-full mx-auto relative">
+                        ${renderSidebar()}
+                        <main class="flex-1 p-4 md:p-6 overflow-y-auto">
+                            ${renderMainContent()}
+                        </main>
+                    </div>
+                    ${state.selectedReceiptTrx ? renderReceiptModal() : ''}
+                    ${state.editingTrx ? renderEditReceiptModal() : ''}
+                    ${state.expenseModal.isOpen ? renderExpenseModal() : ''}
+                `;
+            }
+            lucide.createIcons();
 
-    const app = document.getElementById('app');
-    app.className = "flex-1 flex flex-col min-h-screen";
-    if (!state.currentUser) {
-        app.innerHTML = renderLogin();
-    } else {
-        app.innerHTML = `
-            ${renderHeader()}
-            <div class="flex-1 flex flex-col md:flex-row max-w-7xl w-full mx-auto relative">
-                ${renderSidebar()}
-                <main class="flex-1 p-4 md:p-6 overflow-y-auto">
-                    ${renderMainContent()}
-                </main>
-            </div>
-            ${state.selectedReceiptTrx ? renderReceiptModal() : ''}
-            ${state.editingTrx ? renderEditReceiptModal() : ''}
-            ${state.expenseModal.isOpen ? renderExpenseModal() : ''}
-        `;
-    }
-    lucide.createIcons();
-
-    const cartContainer = document.getElementById('cart-items-container');
-    if (cartContainer) {
-        cartContainer.scrollTop = cartContainer.scrollHeight;
-    }
-
-    // 2. Kembalikan posisi scroll kategori setelah browser selesai render ulang
-    setTimeout(() => {
-        const newCatContainer = document.getElementById('category-container');
-        if (newCatContainer && savedCategoryScroll > 0) {
-            newCatContainer.scrollLeft = savedCategoryScroll;
-        }
-    }, 0);
-}
-
+            const cartContainer = document.getElementById('cart-items-container');
+            if (cartContainer) {
+                cartContainer.scrollTop = cartContainer.scrollHeight;
+            }
         }
 
         function renderLogin() {
@@ -722,8 +707,7 @@
                                 <i data-lucide="search" class="w-4 h-4 absolute left-3 top-3 text-slate-400"></i>
                                 <input type="text" placeholder="Cari bakso, mie, es teh..." value="${state.searchQuery}" oninput="handleSearchInput(this.value)" class="w-full bg-slate-50 border border-slate-200 pl-10 pr-4 py-2 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500">
                             </div>
-                            <div id="category-container" class="flex gap-2 overflow-x-auto pb-1 no-scrollbar">
-
+                            <div class="flex gap-2 overflow-x-auto pb-1 no-scrollbar">
                                 <button onclick="selectCategory('all')" class="px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition ${state.selectedCategory === 'all' ? 'bg-cyan-500 text-slate-950 shadow' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}">
                                     Semua Menu
                                 </button>
@@ -1795,21 +1779,15 @@
         }
 
         function selectCategory(c) { 
-    // 1. Simpan posisi scroll saat ini sebelum render
-    const categoryContainer = document.getElementById('category-container');
-    const currentScroll = categoryContainer ? categoryContainer.scrollLeft : 0;
-
-    state.selectedCategory = c; 
-
-    // 2. Render ulang tampilan untuk memperbarui tombol aktif & daftar produk
-    render(); 
-
-    // 3. Kembalikan posisi scroll ke posisi semula
-    const newCategoryContainer = document.getElementById('category-container');
-    if (newCategoryContainer) {
-        newCategoryContainer.scrollLeft = currentScroll;
-    }
-}
+            state.selectedCategory = c; 
+            const gridContainer = document.getElementById('product-grid-container');
+            if (gridContainer) {
+                gridContainer.innerHTML = renderProductGridHTML();
+                lucide.createIcons();
+            } else {
+                render(); 
+            }
+        }
 
         function handleSearchInput(q) {
             state.searchQuery = q;
