@@ -1379,7 +1379,7 @@
     rows.push([]); // Baris kosong pemisah
 
     // Header Kolom Tabel
-    rows.push(["No", "Waktu", "No TRX", "Nama Menu", "Kasir", "Metode Bayar", "Qty", "Harga Satuan (Rp)", "Subtotal (Rp)"]);
+    rows.push(["No", "Waktu", "No TRX", "Nama Menu", "Kasir", "Metode Bayar", "Qty", "Harga Satuan", "Subtotal"]);
 
     // Data Item Terjual
     let totalQtyAll = 0;
@@ -1691,8 +1691,8 @@
                                 <div class="w-45 mx-auto mb-2 flex items-center justify-center">
                                     <img src="Bakso Master_20260806_015624_0000.png" alt="Bakso Master Logo" class="w-full h-auto object-contain">
                                 </div>
-                                <div class="text-[10px] text-slate-600">{Payudan Karangsokon Guluk-guluk Sumenep}</div>
-                            </div>
+                                
+                            
                             <div class="border-b border-dashed border-slate-400"></div>
                             <div class="space-y-1 text-[11px]">
                                 ${t.items.map(it => `<div class="flex justify-between"><span>${it.qty}x ${it.name}</span><span>${formatRupiah(it.subtotal)}</span></div>`).join('')}
