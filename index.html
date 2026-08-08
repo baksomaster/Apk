@@ -707,7 +707,8 @@
                                 <i data-lucide="search" class="w-4 h-4 absolute left-3 top-3 text-slate-400"></i>
                                 <input type="text" placeholder="Cari bakso, mie, es teh..." value="${state.searchQuery}" oninput="handleSearchInput(this.value)" class="w-full bg-slate-50 border border-slate-200 pl-10 pr-4 py-2 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500">
                             </div>
-                            <div class="flex gap-2 overflow-x-auto pb-1 no-scrollbar">
+                            <div id="category-container" class="flex gap-2 overflow-x-auto pb-1 no-scrollbar">
+
                                 <button onclick="selectCategory('all')" class="px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition ${state.selectedCategory === 'all' ? 'bg-cyan-500 text-slate-950 shadow' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}">
                                     Semua Menu
                                 </button>
@@ -1779,15 +1780,18 @@
         }
 
         function selectCategory(c) { 
-            state.selectedCategory = c; 
-            const gridContainer = document.getElementById('product-grid-container');
-            if (gridContainer) {
-                gridContainer.innerHTML = renderProductGridHTML();
-                lucide.createIcons();
-            } else {
-                render(); 
-            }
-        }
+    state.selectedCategory = c; 
+
+    // Render ulang tampilan
+    render(); 
+
+    // Cari tombol yang baru saja diklik dan geser dengan halus ke tengah tampilan
+    const activeBtn = document.querySelector(`#category-container button[onclick*="'${c}'"]`);
+    if (activeBtn) {
+        activeBtn.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+    }
+}
+
 
         function handleSearchInput(q) {
             state.searchQuery = q;
