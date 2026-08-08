@@ -146,6 +146,103 @@
 
         let state = JSON.parse(JSON.stringify(defaultState));
 
+        // Format teks struk khusus untuk Printer Thermal (32 Karakter untuk Printer 58mm)
+        function formatReceiptTextForRawBT(t) {
+            if (!t) return '';
+
+            const storeName = state.settings.storeName || 'Bakso Master';
+            const address = state.settings.address || '';
+            const phone = state.settings.phone || '';
+            const footer = state.settings.receiptFooter || 'Terima Kasih Atas Kunjungan Anda!';
+
+            const subtotalTrx = t.items.reduce((acc, item) => acc + item.subtotal, 0);
+            const taxTrx = t.total - subtotalTrx;
+
+            const WIDTH = 32; // Lebar standar kertas thermal 58mm
+
+            function centerText(str) {
+                if (str.length >= WIDTH) return str.substring(0, WIDTH);
+                const pad = Math.floor((WIDTH - str.length) / 2);
+                return ' '.repeat(pad) + str;
+            }
+
+            function makeLine(left, right) {
+                const space = WIDTH - left.length - right.length;
+                if (space > 0) {
+                    return left + ' '.repeat(space) + right;
+                } else {
+                    return left + '\n' + ' '.repeat(Math.max(0, WIDTH - right.length)) + right;
+                }
+            }
+
+            const divider = '-'.repeat(WIDTH);
+            let text = '';
+
+            // Header Restoran
+            text += centerText(storeName) + '\n';
+            if (address) {
+                const lines = address.split(',');
+                lines.forEach(l => text += centerText(l.trim()) + '\n');
+            }
+            if (phone) text += centerText('Telp: ' + phone) + '\n';
+            text += divider + '\n';
+
+            // Detail Transaksi
+            text += makeLine(`Tgl: ${t.date}`, `Jam: ${t.time}`) + '\n';
+            text += makeLine(`No: ${t.id}`, `Kasir: ${t.cashierName || 'Kasir'}`) + '\n';
+            text += divider + '\n';
+
+            // Item Belanja
+            t.items.forEach(it => {
+                text += `${it.name}\n`;
+                const detail = `  ${it.qty}x ${formatNumber(it.price)}`;
+                const sub = formatRupiah(it.subtotal);
+                text += makeLine(detail, sub) + '\n';
+            });
+            text += divider + '\n';
+
+            // Ringkasan Pembayaran
+            text += makeLine('Subtotal:', formatRupiah(subtotalTrx)) + '\n';
+            if (state.settings.taxPercent) {
+                text += makeLine(`Pajak (${state.settings.taxPercent}%):`, formatRupiah(taxTrx)) + '\n';
+            }
+            text += divider + '\n';
+
+            text += makeLine('TOTAL:', formatRupiah(t.total)) + '\n';
+            text += makeLine('Metode Bayar:', t.paymentMethod || 'Tunai') + '\n';
+
+            if (t.paymentMethod === 'Tunai') {
+                text += makeLine('Uang Bayar:', formatRupiah(t.amountPaid || t.total)) + '\n';
+                text += makeLine('Kembalian:', formatRupiah(t.changeAmount || 0)) + '\n';
+            } else {
+                text += makeLine('Status:', `Lunas (${t.paymentMethod.toUpperCase()})`) + '\n';
+            }
+            text += divider + '\n';
+
+            // Pesan / Footer
+            const footerLines = footer.split('\n');
+            footerLines.forEach(l => text += centerText(l.trim()) + '\n');
+
+            text += '\n\n\n'; // Feed kertas untuk kemudahan pemotongan
+            return text;
+        }
+
+        // Fungsi Integrasi Langsung ke RawBT tanpa window.print()
+        function printToRawBT(trxData) {
+            const t = trxData || state.selectedReceiptTrx;
+            if (!t) {
+                alert('Data transaksi tidak ditemukan!');
+                return;
+            }
+
+            const rawText = formatReceiptTextForRawBT(t);
+
+            // Intent Scheme spesifik Android untuk aplikasi RawBT
+            const rawbtUrl = 'intent:' + encodeURIComponent(rawText) + '#Intent;scheme=rawbt;package=ru.a404.rawbtprinter;end;';
+
+            window.location.href = rawbtUrl;
+        }
+
         async function loadStateFromSupabase() {
             if (!supabaseClient) return;
             try {
@@ -1084,7 +1181,6 @@
             `;
         }
 
-        // ================= EXPENSES TAB & MODAL =================
         function renderExpensesTab() {
             return `
                 <div class="space-y-4">
@@ -1237,202 +1333,187 @@
                 showToast('Pengeluaran berhasil dihapus!');
             }
         }
-        // ========================================================
 
         function renderTransactionsTab() {
-    return `
-        <div class="space-y-4">
-            <h2 class="text-xl font-bold text-slate-900">Histori Transaksi Hari Ini</h2>
-            
-            <!-- Pembungkus tabel dengan overflow-x-auto untuk fitur swipe/scroll horizontal di HP -->
-            <div class="bg-white rounded-xl border border-slate-200 overflow-x-auto shadow-sm">
-                <table class="w-full text-left border-collapse text-sm min-w-[550px]">
-                    <thead>
-                        <tr class="bg-slate-50 border-b border-slate-200 text-xs font-semibold text-slate-500 uppercase whitespace-nowrap">
-                            <th class="p-3">Jam</th>
-                            <th class="p-3">Kasir</th>
-                            <th class="p-3">Metode</th>
-                            <th class="p-3">Total</th>
-                            <th class="p-3 text-right">Struk</th>
-                        </tr>
-                    </thead>
-                    <tbody class="divide-y divide-slate-100">
-                        ${state.transactions.length === 0 ? `
-                            <tr><td colspan="5" class="p-4 text-center text-slate-400 text-xs">Belum ada transaksi hari ini.</td></tr>
-                        ` : state.transactions.map(t => `
-                            <tr class="hover:bg-slate-50">
-                                <td class="p-3 whitespace-nowrap">
-                                    
-                                    <div class="text-[11px] text-slate-500">${t.time}</div>
-                                </td>
-                                <td class="p-3 text-xs text-slate-700 whitespace-nowrap">${t.cashierName || 'Kasir'}</td>
-                                <td class="p-3 whitespace-nowrap">
-                                    <span class="text-xs bg-slate-100 px-2 py-0.5 rounded font-bold text-slate-700">${t.paymentMethod || 'Tunai'}</span>
-                                </td>
-                                <td class="p-3 font-bold text-cyan-700 whitespace-nowrap">${formatRupiah(t.total)}</td>
-                                <td class="p-3 text-right whitespace-nowrap">
-                                    <button onclick="openReceiptModal('${t.id}')" class="bg-slate-100 hover:bg-cyan-50 text-slate-700 hover:text-cyan-800 px-2.5 py-1 rounded text-xs font-semibold transition">Cetak</button>
-                                </td>
-                            </tr>
-                        `).join('')}
-                    </tbody>
-                </table>
-            </div>
-        </div>
-    `;
+            return `
+                <div class="space-y-4">
+                    <h2 class="text-xl font-bold text-slate-900">Histori Transaksi Hari Ini</h2>
+                    <div class="bg-white rounded-xl border border-slate-200 overflow-x-auto shadow-sm">
+                        <table class="w-full text-left border-collapse text-sm min-w-[550px]">
+                            <thead>
+                                <tr class="bg-slate-50 border-b border-slate-200 text-xs font-semibold text-slate-500 uppercase whitespace-nowrap">
+                                    <th class="p-3">Jam</th>
+                                    <th class="p-3">Kasir</th>
+                                    <th class="p-3">Metode</th>
+                                    <th class="p-3">Total</th>
+                                    <th class="p-3 text-right">Struk</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-100">
+                                ${state.transactions.length === 0 ? `
+                                    <tr><td colspan="5" class="p-4 text-center text-slate-400 text-xs">Belum ada transaksi hari ini.</td></tr>
+                                ` : state.transactions.map(t => `
+                                    <tr class="hover:bg-slate-50">
+                                        <td class="p-3 whitespace-nowrap">
+                                            <div class="text-[11px] text-slate-500">${t.time}</div>
+                                        </td>
+                                        <td class="p-3 text-xs text-slate-700 whitespace-nowrap">${t.cashierName || 'Kasir'}</td>
+                                        <td class="p-3 whitespace-nowrap">
+                                            <span class="text-xs bg-slate-100 px-2 py-0.5 rounded font-bold text-slate-700">${t.paymentMethod || 'Tunai'}</span>
+                                        </td>
+                                        <td class="p-3 font-bold text-cyan-700 whitespace-nowrap">${formatRupiah(t.total)}</td>
+                                        <td class="p-3 text-right whitespace-nowrap">
+                                            <button onclick="openReceiptModal('${t.id}')" class="bg-slate-100 hover:bg-cyan-50 text-slate-700 hover:text-cyan-800 px-2.5 py-1 rounded text-xs font-semibold transition">Lihat Struk</button>
+                                        </td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            `;
         }
 
         function renderSoldItemsTab() {
-    let soldItems = [];
-    const sortedTransactions = [...state.transactions].reverse();
-    
-    sortedTransactions.forEach(t => {
-        t.items.forEach(i => {
-            soldItems.push({
-                ...i,
-                cashierName: t.cashierName || 'Kasir',
-                trxId: t.id,
-                time: t.time || '',
-                paymentMethod: t.paymentMethod || 'Tunai'
-            });
-        });
-    });
-
-    const totalQtyAll = soldItems.reduce((acc, curr) => acc + curr.qty, 0);
-    const totalRevenueAll = soldItems.reduce((acc, curr) => acc + curr.subtotal, 0);
-
-    return `
-        <div class="space-y-4">
-            <div class="flex justify-between items-center">
-                <h2 class="text-xl font-bold text-slate-900">Daftar Menu Terjual Harian</h2>
-                <button onclick="handleExportSoldItems()" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-3 py-2 rounded-lg text-xs flex items-center gap-1 shadow">
-                    <i data-lucide="file-spreadsheet" class="w-4 h-4"></i> Export Excel
-                </button>
-            </div>
+            let soldItems = [];
+            const sortedTransactions = [...state.transactions].reverse();
             
-            <!-- Pembungkus tabel dengan overflow-x-auto & min-w-[650px] agar kolom tidak terpotong di HP -->
-            <div class="bg-white rounded-xl border border-slate-200 overflow-x-auto shadow-sm">
-                <table class="w-full text-left border-collapse text-sm min-w-[650px]">
-                    <thead>
-                        <tr class="bg-slate-50 border-b border-slate-200 text-xs font-semibold text-slate-500 uppercase whitespace-nowrap">
-                            <th class="p-3">Jam</th>
-                            <th class="p-3">Menu</th>
-                            <th class="p-3">Kasir</th>
-                            <th class="p-3">Metode Bayar</th>
-                            <th class="p-3 text-center">Qty</th>
-                            <th class="p-3 text-right">Subtotal</th>
-                        </tr>
-                    </thead>
-                    <tbody class="divide-y divide-slate-100">
-                        ${soldItems.length === 0 ? `
-                            <tr><td colspan="6" class="p-6 text-center text-slate-400 text-xs">Belum ada menu terjual hari ini.</td></tr>
-                        ` : soldItems.map(i => `
-                            <tr class="hover:bg-slate-50">
-                                <td class="p-3 whitespace-nowrap">
-                                    
-                                    <div class="text-[11px] text-slate-500">${i.time}</div>
-                                </td>
-                                <td class="p-3 font-semibold text-slate-900 whitespace-nowrap">${i.name}</td>
-                                <td class="p-3 text-xs text-slate-700 whitespace-nowrap">${i.cashierName}</td>
-                                <td class="p-3 whitespace-nowrap">
-                                    <span class="text-[11px] px-2 py-0.5 rounded font-bold ${
-                                        i.paymentMethod === 'Tunai' ? 'bg-slate-100 text-slate-700' :
-                                        i.paymentMethod === 'QRIS' ? 'bg-cyan-100 text-cyan-800' : 'bg-blue-100 text-blue-800'
-                                    }">${i.paymentMethod}</span>
-                                </td>
-                                <td class="p-3 text-center font-bold whitespace-nowrap">${i.qty}</td>
-                                <td class="p-3 text-right font-bold text-cyan-700 whitespace-nowrap">${formatRupiah(i.subtotal)}</td>
-                            </tr>
-                        `).join('')}
-                    </tbody>
-                    ${soldItems.length > 0 ? `
-                        <tfoot>
-                            <tr class="bg-slate-100 border-t-2 border-slate-200 font-bold text-slate-900 whitespace-nowrap">
-                                <td colspan="4" class="p-3 text-right uppercase text-xs">Total Keseluruhan:</td>
-                                <td class="p-3 text-center text-sm">${totalQtyAll}</td>
-                                <td class="p-3 text-right text-sm text-cyan-700">${formatRupiah(totalRevenueAll)}</td>
-                            </tr>
-                        </tfoot>
-                    ` : ''}
-                </table>
-            </div>
-        </div>
-    `;
+            sortedTransactions.forEach(t => {
+                t.items.forEach(i => {
+                    soldItems.push({
+                        ...i,
+                        cashierName: t.cashierName || 'Kasir',
+                        trxId: t.id,
+                        time: t.time || '',
+                        paymentMethod: t.paymentMethod || 'Tunai'
+                    });
+                });
+            });
+
+            const totalQtyAll = soldItems.reduce((acc, curr) => acc + curr.qty, 0);
+            const totalRevenueAll = soldItems.reduce((acc, curr) => acc + curr.subtotal, 0);
+
+            return `
+                <div class="space-y-4">
+                    <div class="flex justify-between items-center">
+                        <h2 class="text-xl font-bold text-slate-900">Daftar Menu Terjual Harian</h2>
+                        <button onclick="handleExportSoldItems()" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-3 py-2 rounded-lg text-xs flex items-center gap-1 shadow">
+                            <i data-lucide="file-spreadsheet" class="w-4 h-4"></i> Export Excel
+                        </button>
+                    </div>
+                    
+                    <div class="bg-white rounded-xl border border-slate-200 overflow-x-auto shadow-sm">
+                        <table class="w-full text-left border-collapse text-sm min-w-[650px]">
+                            <thead>
+                                <tr class="bg-slate-50 border-b border-slate-200 text-xs font-semibold text-slate-500 uppercase whitespace-nowrap">
+                                    <th class="p-3">Jam</th>
+                                    <th class="p-3">Menu</th>
+                                    <th class="p-3">Kasir</th>
+                                    <th class="p-3">Metode Bayar</th>
+                                    <th class="p-3 text-center">Qty</th>
+                                    <th class="p-3 text-right">Subtotal</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-100">
+                                ${soldItems.length === 0 ? `
+                                    <tr><td colspan="6" class="p-6 text-center text-slate-400 text-xs">Belum ada menu terjual hari ini.</td></tr>
+                                ` : soldItems.map(i => `
+                                    <tr class="hover:bg-slate-50">
+                                        <td class="p-3 whitespace-nowrap">
+                                            <div class="text-[11px] text-slate-500">${i.time}</div>
+                                        </td>
+                                        <td class="p-3 font-semibold text-slate-900 whitespace-nowrap">${i.name}</td>
+                                        <td class="p-3 text-xs text-slate-700 whitespace-nowrap">${i.cashierName}</td>
+                                        <td class="p-3 whitespace-nowrap">
+                                            <span class="text-[11px] px-2 py-0.5 rounded font-bold ${
+                                                i.paymentMethod === 'Tunai' ? 'bg-slate-100 text-slate-700' :
+                                                i.paymentMethod === 'QRIS' ? 'bg-cyan-100 text-cyan-800' : 'bg-blue-100 text-blue-800'
+                                            }">${i.paymentMethod}</span>
+                                        </td>
+                                        <td class="p-3 text-center font-bold whitespace-nowrap">${i.qty}</td>
+                                        <td class="p-3 text-right font-bold text-cyan-700 whitespace-nowrap">${formatRupiah(i.subtotal)}</td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                            ${soldItems.length > 0 ? `
+                                <tfoot>
+                                    <tr class="bg-slate-100 border-t-2 border-slate-200 font-bold text-slate-900 whitespace-nowrap">
+                                        <td colspan="4" class="p-3 text-right uppercase text-xs">Total Keseluruhan:</td>
+                                        <td class="p-3 text-center text-sm">${totalQtyAll}</td>
+                                        <td class="p-3 text-right text-sm text-cyan-700">${formatRupiah(totalRevenueAll)}</td>
+                                    </tr>
+                                </tfoot>
+                            ` : ''}
+                        </table>
+                    </div>
+                </div>
+            `;
         }
 
         function handleExportSoldItems() {
-    if (typeof XLSX === 'undefined') {
-        alert('Library Excel belum dimuat!');
-        return;
-    }
+            if (typeof XLSX === 'undefined') {
+                alert('Library Excel belum dimuat!');
+                return;
+            }
 
-    const todayStr = getTodayDateString();
-    const sortedTransactions = [...state.transactions].reverse();
+            const todayStr = getTodayDateString();
+            const sortedTransactions = [...state.transactions].reverse();
 
-    // 1. Susun baris-demi-baris (Array of Arrays)
-    const rows = [];
+            const rows = [];
+            rows.push([state.settings.storeName.toUpperCase()]);
+            rows.push(["LAPORAN PENJUALAN & MENU TERJUAL HARIAN"]);
+            rows.push([`Tanggal Export: ${todayStr}`]);
+            rows.push([]);
 
-    // Kop & Judul Laporan
-    rows.push([state.settings.storeName.toUpperCase()]);
-    rows.push(["LAPORAN PENJUALAN & MENU TERJUAL HARIAN"]);
-    rows.push([`Tanggal Export: ${todayStr}`]);
-    rows.push([]); // Baris kosong pemisah
+            rows.push(["No", "Waktu", "No TRX", "Nama Menu", "Kasir", "Metode Bayar", "Qty", "Harga Satuan", "Subtotal"]);
 
-    // Header Kolom Tabel
-    rows.push(["No", "Waktu", "No TRX", "Nama Menu", "Kasir", "Metode Bayar", "Qty", "Harga Satuan", "Subtotal"]);
+            let totalQtyAll = 0;
+            let totalRevenueAll = 0;
+            let no = 1;
 
-    // Data Item Terjual
-    let totalQtyAll = 0;
-    let totalRevenueAll = 0;
-    let no = 1;
+            sortedTransactions.forEach(t => {
+                t.items.forEach(i => {
+                    rows.push([
+                        no++,
+                        `${t.date} ${t.time}`,
+                        t.id,
+                        i.name,
+                        t.cashierName || 'Kasir',
+                        t.paymentMethod || 'Tunai',
+                        i.qty,
+                        i.price,
+                        i.subtotal
+                    ]);
+                    totalQtyAll += i.qty;
+                    totalRevenueAll += i.subtotal;
+                });
+            });
 
-    sortedTransactions.forEach(t => {
-        t.items.forEach(i => {
+            rows.push([]);
             rows.push([
-                no++,
-                `${t.date} ${t.time}`,
-                t.id,
-                i.name,
-                t.cashierName || 'Kasir',
-                t.paymentMethod || 'Tunai',
-                i.qty,
-                i.price,
-                i.subtotal
+                "", "", "", "", "", "TOTAL KESELURUHAN:",
+                totalQtyAll,
+                "",
+                totalRevenueAll
             ]);
-            totalQtyAll += i.qty;
-            totalRevenueAll += i.subtotal;
-        });
-    });
 
-    // Baris Total Penjualan
-    rows.push([]); // Baris kosong pembatas
-    rows.push([
-        "", "", "", "", "", "TOTAL KESELURUHAN:",
-        totalQtyAll,
-        "",
-        totalRevenueAll
-    ]);
+            const worksheet = XLSX.utils.aoa_to_sheet(rows);
 
-    // 2. Buat Worksheet dari Array of Arrays
-    const worksheet = XLSX.utils.aoa_to_sheet(rows);
+            worksheet['!cols'] = [
+                { wch: 6 },
+                { wch: 18 },
+                { wch: 15 },
+                { wch: 30 },
+                { wch: 18 },
+                { wch: 15 },
+                { wch: 8 },
+                { wch: 18 },
+                { wch: 18 }
+            ];
 
-    // 3. Atur Lebar Kolom agar rapi & tidak bertumpuk/amburadul
-    worksheet['!cols'] = [
-        { wch: 6 },  // No
-        { wch: 18 }, // Waktu
-        { wch: 15 }, // No TRX
-        { wch: 30 }, // Nama Menu
-        { wch: 18 }, // Kasir
-        { wch: 15 }, // Metode Bayar
-        { wch: 8 },  // Qty
-        { wch: 18 }, // Harga Satuan
-        { wch: 18 }  // Subtotal
-    ];
-
-    // 4. Generate & Download File Excel
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, "Menu Terjual");
-    XLSX.writeFile(workbook, `Laporan_Penjualan_${todayStr}.xlsx`);
+            const workbook = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(workbook, worksheet, "Menu Terjual");
+            XLSX.writeFile(workbook, `Laporan_Penjualan_${todayStr}.xlsx`);
         }
 
         function renderDailyExpensesTab() {
@@ -1453,53 +1534,47 @@
         }
 
         function handleExportDailyExpenses() {
-    if (typeof XLSX === 'undefined') {
-        alert('Library Excel belum dimuat!');
-        return;
-    }
+            if (typeof XLSX === 'undefined') {
+                alert('Library Excel belum dimuat!');
+                return;
+            }
 
-    const todayStr = getTodayDateString();
-    const rows = [];
+            const todayStr = getTodayDateString();
+            const rows = [];
 
-    // Kop & Judul Laporan
-    rows.push([state.settings.storeName.toUpperCase()]);
-    rows.push(["LAPORAN BELANJA & PENGELUARAN HARIAN"]);
-    rows.push([`Tanggal Export: ${todayStr}`]);
-    rows.push([]); // Baris kosong pemisah
+            rows.push([state.settings.storeName.toUpperCase()]);
+            rows.push(["LAPORAN BELANJA & PENGELUARAN HARIAN"]);
+            rows.push([`Tanggal Export: ${todayStr}`]);
+            rows.push([]);
 
-    // Header Kolom Tabel
-    rows.push(["No", "Nama Belanja / Pengeluaran", "Nominal (Rp)"]);
+            rows.push(["No", "Nama Belanja / Pengeluaran", "Nominal (Rp)"]);
 
-    // Data Pengeluaran
-    let totalExpense = 0;
-    state.expenses.forEach((e, index) => {
-        rows.push([
-            index + 1,
-            e.name,
-            e.amount
-        ]);
-        totalExpense += e.amount;
-    });
+            let totalExpense = 0;
+            state.expenses.forEach((e, index) => {
+                rows.push([
+                    index + 1,
+                    e.name,
+                    e.amount
+                ]);
+                totalExpense += e.amount;
+            });
 
-    // Baris Total Pengeluaran
-    rows.push([]);
-    rows.push(["", "TOTAL PENGELUARAN:", totalExpense]);
+            rows.push([]);
+            rows.push(["", "TOTAL PENGELUARAN:", totalExpense]);
 
-    // Buat Worksheet
-    const worksheet = XLSX.utils.aoa_to_sheet(rows);
+            const worksheet = XLSX.utils.aoa_to_sheet(rows);
 
-    // Atur Lebar Kolom
-    worksheet['!cols'] = [
-        { wch: 6 },  // No
-        { wch: 35 }, // Nama Belanja
-        { wch: 20 }  // Nominal
-    ];
+            worksheet['!cols'] = [
+                { wch: 6 },
+                { wch: 35 },
+                { wch: 20 }
+            ];
 
-    // Generate & Download File Excel
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, "Belanja Harian");
-    XLSX.writeFile(workbook, `Laporan_Belanja_${todayStr}.xlsx`);
+            const workbook = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(workbook, worksheet, "Belanja Harian");
+            XLSX.writeFile(workbook, `Laporan_Belanja_${todayStr}.xlsx`);
         }
+
         function renderReportsTab() {
             const omzet = state.transactions.reduce((a, b) => a + b.total, 0);
             const biaya = state.expenses.reduce((a, b) => a + b.amount, 0);
@@ -1678,67 +1753,69 @@
         }
 
         function renderReceiptModal() {
-    const t = state.selectedReceiptTrx;
-    if (!t) return '';
-    const subtotalTrx = t.items.reduce((acc, item) => acc + item.subtotal, 0);
-    const taxTrx = t.total - subtotalTrx;
+            const t = state.selectedReceiptTrx;
+            if (!t) return '';
+            const subtotalTrx = t.items.reduce((acc, item) => acc + item.subtotal, 0);
+            const taxTrx = t.total - subtotalTrx;
 
-    return `
-        <div class="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-            <div class="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-6 text-slate-900 space-y-4">
-                <div id="receipt-paper" class="bg-amber-50/50 p-4 rounded-lg border border-slate-200 font-mono text-xs space-y-3">
+            return `
+                <div class="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                    <div class="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-6 text-slate-900 space-y-4">
+                        <div id="receipt-paper" class="bg-amber-50/50 p-4 rounded-lg border border-slate-200 font-mono text-xs space-y-3">
 
-                    <div class="text-center space-y-1">
-                        <div class="w-42 mx-auto mb-2 flex items-center justify-center">
-                            <img src="Bakso Master_20260806_015624_0000.png" alt="Bakso Master Logo" class="w-full h-auto object-contain">
+                            <div class="text-center space-y-1">
+                                <div class="w-42 mx-auto mb-2 flex items-center justify-center">
+                                    <img src="Bakso Master_20260806_015624_0000.png" alt="Bakso Master Logo" class="w-full h-auto object-contain">
+                                </div>
+                            
+                            <!-- Informasi Tanggal & Jam -->
+                            <div class="flex justify-between items-start text-[10px] text-slate-700 leading-tight">
+                                <div>
+                                    <div>Tgl: ${t.date}</div>
+                                    <div>Jam: ${t.time} WIB</div>
+                                </div>
+                                <div class="text-right">
+                                    <div>No: ${t.id}</div>
+                                    <div>Kasir: ${t.cashierName || 'Kasir'}</div>
+                                </div>
+                            </div>
+                            
+                            <div class="border-b border-dashed border-slate-400"></div>
+                            <div class="space-y-1 text-[11px]">
+                                ${t.items.map(it => `<div class="flex justify-between"><span>${it.qty}x ${it.name}</span><span>${formatRupiah(it.subtotal)}</span></div>`).join('')}
+                            </div>
+                            <div class="border-b border-dashed border-slate-400"></div>
+                            <div class="space-y-1 text-[11px]">
+                                <div class="flex justify-between text-slate-600"><span>Subtotal:</span><span>${formatRupiah(subtotalTrx)}</span></div>
+                                <div class="flex justify-between text-slate-600"><span>Pajak (${state.settings.taxPercent || 0}%):</span><span>${formatRupiah(taxTrx)}</span></div>
+                            </div>
+                            <div class="border-b border-dashed border-slate-400"></div>
+                            <div class="space-y-1 text-[11px]">
+                                <div class="flex justify-between font-bold"><span>Metode Bayar:</span><span>${t.paymentMethod || 'Tunai'}</span></div>
+                                ${t.paymentMethod === 'Tunai' ? `
+                                    <div class="flex justify-between text-slate-600"><span>Uang Bayar:</span><span>${formatRupiah(t.amountPaid || t.total)}</span></div>
+                                    <div class="flex justify-between text-slate-600"><span>Kembalian:</span><span>${formatRupiah(t.changeAmount || 0)}</span></div>
+                                ` : `
+                                    <div class="flex justify-between text-slate-600"><span>Status:</span><span>Lunas (${t.paymentMethod.toUpperCase()})</span></div>
+                                `}
+                            </div>
+                            <div class="border-b border-dashed border-slate-400"></div>
+                            <div class="flex justify-between font-extrabold text-sm"><span>TOTAL:</span><span>${formatRupiah(t.total)}</span></div>
+                            <div class="border-b border-dashed border-slate-400"></div>
+                            <div class="text-center text-[10px] text-slate-600 whitespace-pre-line pt-1">
+                                ${state.settings.receiptFooter || 'Terima Kasih Atas Kunjungan Anda!'}
+                            </div>
                         </div>
-                    
-                    <!-- Informasi Tanggal & Jam di Pojok Kiri Atas -->
-                    <div class="flex justify-between items-start text-[10px] text-slate-700 leading-tight">
-                        <div>
-                            <div>Tgl: ${t.date}</div>
-                            <div>Jam: ${t.time} WIB</div>
+                        <div class="flex gap-2 no-print">
+                            <button onclick="printToRawBT()" class="flex-1 bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold py-2.5 rounded-xl text-xs flex items-center justify-center gap-1.5 shadow">
+                                <i data-lucide="printer" class="w-4 h-4"></i> Cetak Struk (RawBT)
+                            </button>
+                            <button onclick="closeReceiptModal()" class="bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold px-4 py-2.5 rounded-xl text-xs">Tutup</button>
                         </div>
-                        <div class="text-right">
-                            <div>No: ${t.id}</div>
-                            <div>Kasir: ${t.cashierName || 'Kasir'}</div>
-                        </div>
-                    </div>
-                    
-                    <div class="border-b border-dashed border-slate-400"></div>
-                    <div class="space-y-1 text-[11px]">
-                        ${t.items.map(it => `<div class="flex justify-between"><span>${it.qty}x ${it.name}</span><span>${formatRupiah(it.subtotal)}</span></div>`).join('')}
-                    </div>
-                    <div class="border-b border-dashed border-slate-400"></div>
-                    <div class="space-y-1 text-[11px]">
-                        <div class="flex justify-between text-slate-600"><span>Subtotal:</span><span>${formatRupiah(subtotalTrx)}</span></div>
-                        <div class="flex justify-between text-slate-600"><span>Pajak (${state.settings.taxPercent || 0}%):</span><span>${formatRupiah(taxTrx)}</span></div>
-                    </div>
-                    <div class="border-b border-dashed border-slate-400"></div>
-                    <div class="space-y-1 text-[11px]">
-                        <div class="flex justify-between font-bold"><span>Metode Bayar:</span><span>${t.paymentMethod || 'Tunai'}</span></div>
-                        ${t.paymentMethod === 'Tunai' ? `
-                            <div class="flex justify-between text-slate-600"><span>Uang Bayar:</span><span>${formatRupiah(t.amountPaid || t.total)}</span></div>
-                            <div class="flex justify-between text-slate-600"><span>Kembalian:</span><span>${formatRupiah(t.changeAmount || 0)}</span></div>
-                        ` : `
-                            <div class="flex justify-between text-slate-600"><span>Status:</span><span>Lunas (${t.paymentMethod.toUpperCase()})</span></div>
-                        `}
-                    </div>
-                    <div class="border-b border-dashed border-slate-400"></div>
-                    <div class="flex justify-between font-extrabold text-sm"><span>TOTAL:</span><span>${formatRupiah(t.total)}</span></div>
-                    <div class="border-b border-dashed border-slate-400"></div>
-                    <div class="text-center text-[10px] text-slate-600 whitespace-pre-line pt-1">
-                        ${state.settings.receiptFooter || 'Terima Kasih Atas Kunjungan Anda!'}
                     </div>
                 </div>
-                <div class="flex gap-2 no-print">
-                    <button onclick="window.print()" class="flex-1 bg-cyan-500 text-slate-950 font-bold py-2.5 rounded-xl text-xs">Cetak Struk</button>
-                    <button onclick="closeReceiptModal()" class="bg-slate-100 text-slate-700 font-bold px-4 py-2.5 rounded-xl text-xs">Tutup</button>
-                </div>
-            </div>
-        </div>
-    `;
-}
+            `;
+        }
 
         function toggleSidebar() { state.isSidebarOpen = !state.isSidebarOpen; render(); }
         
